@@ -1,0 +1,12 @@
+{
+  "case_id": "unreachable_classifier_contract",
+  "name": "Unreachable Classifier Contract (Should Fail)",
+  "description": "Same classifier repo as fair_fast_classifier_multi_metric, but with intentionally impossible thresholds to stress early-stop and best-effort behavior.",
+  "repo_path": "../../should_succeed/fair_fast_classifier_multi_metric/repo",
+  "goal": "Try to improve the classifier",
+  "metrics": "accuracy >= 0.99, loss <= 0.05, fairness_gap <= 0.001, training_time < baseline training_time",
+  "expected_outcome": "partial_success",
+  "timeout_s": 900,
+  "max_turns": 6
+}
+

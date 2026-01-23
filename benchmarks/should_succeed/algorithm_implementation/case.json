@@ -1,0 +1,12 @@
+{
+  "case_id": "algorithm_implementation",
+  "name": "Implement Binary Search Tree",
+  "description": "Complete the BST implementation with insert, search, and in-order traversal",
+  "repo_path": "repo",
+  "goal": "Complete the BinarySearchTree class in bst.py.",
+  "metrics": "traversal_correct == true",
+  "expected_outcome": "success",
+  "timeout_s": 600,
+  "max_turns": 8
+}
+

@@ -1,0 +1,12 @@
+{
+  "case_id": "ml_training_multi_metric",
+  "name": "ML Training with Multiple Metrics",
+  "description": "Train a classifier that must satisfy multiple constraints: accuracy >= 0.85, loss <= 0.5, and training time < 30 seconds",
+  "repo_path": "repo",
+  "goal": "Fix and optimize the neural network training in train.py. The model must achieve: (1) test accuracy >= 0.85, (2) final loss <= 0.5, (3) training completes in under 30 seconds. All three metrics must be satisfied. Results should be saved to artifacts/metrics.json.",
+  "metrics": "accuracy >= 0.85, loss <= 0.5, training_time < 30",
+  "expected_outcome": "success",
+  "timeout_s": 600,
+  "max_turns": 10
+}
+

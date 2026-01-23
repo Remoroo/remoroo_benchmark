@@ -1,0 +1,11 @@
+{
+  "case_id": "undefined_elegance_task",
+  "name": "Undefined Code Elegance Improvement",
+  "description": "Improve the elegance of the codebase without defining what elegance means or how it is measured. This task is intentionally undefined and should fail during evaluation.",
+  "repo_path": "repo",
+  "goal": "Make the codebase more elegant",
+  "metrics": "elegance_score >= 0.9",
+  "expected_outcome": "fail",
+  "timeout_s": 3600,
+  "max_turns": 20
+}

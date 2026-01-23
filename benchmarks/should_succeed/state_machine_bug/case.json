@@ -1,0 +1,12 @@
+{
+  "case_id": "state_machine_bug",
+  "name": "Fix State Machine Transition Bug",
+  "description": "Fix subtle bugs in an order processing state machine that allows invalid state transitions",
+  "repo_path": "repo",
+  "goal": "Fix the OrderStateMachine in order_fsm.py. There are multiple bugs: 1) Allows CANCELLED->SHIPPED transition (invalid), 2) Missing guard on PENDING->PROCESSING (should require payment), 3) Doesn't prevent duplicate transitions. All 10 test cases must pass.",
+  "metrics": "all_tests_pass == true",
+  "expected_outcome": "success",
+  "timeout_s": 600,
+  "max_turns": 12
+}
+

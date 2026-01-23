@@ -1,0 +1,18 @@
+{
+  "run_id": "run-1768550677",
+  "goal": "Optimize speed",
+  "metrics_spec": "runtime_s",
+  "decision": "UNKNOWN",
+  "reason": "No judge decision found",
+  "recommendations": [],
+  "turns_summary": [],
+  "final_metrics": {},
+  "baseline_metrics": {},
+  "pre_run": {
+    "commands": [],
+    "diff_exists": false
+  },
+  "refs": {
+    "consolidated_metrics": "metrics_consolidated.json"
+  }
+}

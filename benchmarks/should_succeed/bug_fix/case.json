@@ -1,0 +1,12 @@
+{
+  "case_id": "bug_fix",
+  "name": "Fix Division Bug",
+  "description": "Fix a division by zero bug in a calculator module",
+  "repo_path": "repo",
+  "goal": "Fix the bug in calculator.py that causes ZeroDivisionError when dividing by zero. The function should return None instead of crashing.",
+  "metrics": "code_runs == true",
+  "expected_outcome": "success",
+  "timeout_s": 600,
+  "max_turns": 5
+}
+

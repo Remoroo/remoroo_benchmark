@@ -1,0 +1,11 @@
+{
+    "case_id": "simpsons_paradox",
+    "name": "Simpson's Paradox (Causal Inference)",
+    "description": "A Data Science task where the global correlation is the inverse of the local correlation. The agent must discover that the 'group' feature is a confounder and include it in the model to achieve the target accuracy.",
+    "repo_path": "repo",
+    "goal": "Train a regression model in `train.py` to predict `y` using `data.csv`. The lowest possible MSE is required. You must explore the data relationships carefully.",
+    "metrics": "mse < 50.0",
+    "expected_outcome": "success",
+    "timeout_s": 300,
+    "max_turns": 3
+}

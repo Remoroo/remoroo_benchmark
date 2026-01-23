@@ -1,0 +1,11 @@
+{
+  "case_id": "sum_numbers_runtime",
+  "name": "Sum Numbers Runtime Optimization",
+  "description": "Optimize the runtime performance of the sum_numbers function on large inputs while preserving correctness.",
+  "repo_path": "repo",
+  "goal": "Reduce the average runtime of sum_numbers on large inputs without changing its output",
+  "metrics": "mean_runtime_ms <= 0.5 * baseline_mean_runtime_ms on input size 10^7 AND output == reference_output for all test cases",
+  "expected_outcome": "success",
+  "timeout_s": 600,
+  "max_turns": 10
+}

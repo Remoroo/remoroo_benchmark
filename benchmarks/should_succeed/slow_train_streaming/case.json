@@ -1,0 +1,12 @@
+{
+  "case_id": "slow_train_streaming",
+  "name": "Slow Train With Streaming Logs",
+  "description": "A long-running training loop that prints progress; stresses command execution, timeouts, and log handling.",
+  "repo_path": "repo",
+  "goal": "Ensure `python train.py` completes successfully and writes artifacts/metrics.json. Do not remove progress logging. Keep runtime >= 3s so it remains a long-run stress test.",
+  "metrics": "code_runs == true, runtime_s >= 3.0",
+  "expected_outcome": "success",
+  "timeout_s": 900,
+  "max_turns": 4
+}
+

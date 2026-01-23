@@ -1,0 +1,12 @@
+{
+  "case_id": "compression_task_im",
+  "name": "Impossible Compression Task",
+  "description": "Compress any file to 50% size with no loss, always. This is an impossible task that should fail.",
+  "repo_path": "repo",
+  "goal": "Compress any file to 50% size with no loss, always",
+  "metrics": "compressed_size / original_size <= 0.5 for 100% of files",
+  "expected_outcome": "fail",
+  "timeout_s": 3600,
+  "max_turns": 20
+}
+

@@ -1,0 +1,14 @@
+{
+  "case_id": "python_motion_planning_smoke",
+  "name": "python_motion_planning A* Smoke Test",
+  "description": "Install dependencies, import the library, and run a minimal 2D grid A* planning demo from the repo to verify the code runs end-to-end and produces a valid (non-empty) path without errors.",
+  "repo_path": "repo",
+  "goal": "use the repos A* code to run a demo and and produce a non-empty path",
+  "metrics": "path_found == true AND path_length > 0 AND no_exceptions == true",
+  "expected_outcome": "success",
+  "timeout_s": 1800,
+  "max_turns": 15
+  }
+
+
+  

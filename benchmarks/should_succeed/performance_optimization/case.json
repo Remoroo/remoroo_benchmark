@@ -1,0 +1,11 @@
+{
+  "case_id": "performance_optimization",
+  "name": "Performance Optimization",
+  "description": "Optimize a data processing pipeline for both runtime and memory usage.",
+  "repo_path": "repo",
+  "goal": "Optimize the pipeline to run in under 0.5s and use less than 10MB of memory.",
+  "metrics": "no metric",
+  "expected_outcome": "success",
+  "timeout_s": 600,
+  "max_turns": 15
+}

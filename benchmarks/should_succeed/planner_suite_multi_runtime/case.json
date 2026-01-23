@@ -1,0 +1,12 @@
+{
+  "case_id": "planner_suite_multi_runtime",
+  "name": "Planner Suite Multi-Runtime (Baseline-Relative)",
+  "description": "A deterministic suite that runs several planners and measures per-planner runtime plus total runtime. Requires improvements across multiple files.",
+  "repo_path": "repo",
+  "goal": "Optimize the runtime of the planners without changing outputs.",
+  "metrics": "planner_a_runtime_s < baseline planner_a_runtime_s, planner_b_runtime_s < baseline planner_b_runtime_s, planner_c_runtime_s < baseline planner_c_runtime_s, runtime_total_s < baseline runtime_total_s",
+  "expected_outcome": "success",
+  "timeout_s": 900,
+  "max_turns": 10
+}
+

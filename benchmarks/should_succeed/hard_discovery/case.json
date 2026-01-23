@@ -1,0 +1,11 @@
+{
+    "case_id": "hard_discovery",
+    "name": "Hard Discovery (Force Search)",
+    "description": "A massive repository where the target code is hidden deep in the directory structure, truncated from the initial index summary.",
+    "repo_path": "repo",
+    "goal": "Fix the bug in the LegacyHiddenProcessor class where the 'process' method returns True even when data is invalid.",
+    "metrics": "tests_passed == true",
+    "expected_outcome": "success",
+    "timeout_s": 900,
+    "max_turns": 20
+}

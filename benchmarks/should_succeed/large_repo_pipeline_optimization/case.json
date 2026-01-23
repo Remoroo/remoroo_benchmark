@@ -1,0 +1,12 @@
+{
+  "case_id": "large_repo_pipeline_optimization",
+  "name": "Large Repo Pipeline Optimization (Multi-file)",
+  "description": "A larger Python codebase with an ETL-style pipeline that is correct but slow due to inefficient tokenization and feature building. Requires optimization across multiple modules.",
+  "repo_path": "repo",
+  "goal": "This repository implements a small text-classification pipeline across multiple modules under bigpipe/. It is correct but slow because it repeatedly compiles regexes, uses O(n^2) membership checks, and does redundant work. Optimize the pipeline across the codebase (multiple files) so that running `python main.py` writes artifacts/metrics.json with runtime_s and correctness and satisfies the metric constraints. Keep outputs deterministic.",
+  "metrics": "runtime_s <= 2.0, correctness == true",
+  "expected_outcome": "success",
+  "timeout_s": 900,
+  "max_turns": 8
+}
+

@@ -1,0 +1,13 @@
+{
+  "case_id": "fair_fast_classifier_multi_metric",
+  "name": "Fair + Fast Classifier (Multi-metric, Multi-file)",
+  "description": "Fix correctness and performance across a small ML codebase: improve accuracy & loss, reduce training time vs baseline, and reduce group fairness gap.",
+  "repo_path": "repo",
+  "goal": "This repo trains a simple binary classifier on a synthetic dataset with two demographic groups. It currently trains slowly (python loops), is unstable (bad learning rate), and produces poor accuracy and an unacceptable fairness gap. Fix the implementation across the codebase so that a single run of `python train.py` writes `artifacts/metrics.json` with ALL required metrics and satisfies: (1) accuracy >= 0.93, (2) loss <= 0.25, (3) fairness_gap <= 0.10, (4) training_time < baseline training_time. Do not change the metric names. Keep the solution generic and deterministic (seeded).",
+  "metrics": "accuracy >= 0.93, loss <= 0.25, fairness_gap <= 0.10, training_time < baseline training_time",
+  "expected_outcome": "partial_success",
+  "timeout_s": 900,
+  "max_turns": 8
+}
+
+

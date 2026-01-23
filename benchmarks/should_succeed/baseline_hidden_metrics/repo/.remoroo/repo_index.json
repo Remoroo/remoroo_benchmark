@@ -1,0 +1,471 @@
+{
+  "schema_version": "1.0",
+  "repo": {
+    "root": "/Users/adham/Downloads/remoroo_offline_engine/benchmarks/should_succeed/baseline_hidden_metrics/repo",
+    "name": "repo",
+    "default_branch": "main",
+    "vcs": {
+      "type": "git",
+      "head_commit": "642512a2433e949e737a891cf70dc398c0419a7d"
+    }
+  },
+  "build": {
+    "created_at": "2026-01-10T08:56:29.912635Z",
+    "indexer": {
+      "name": "remoroo-indexer",
+      "version": "0.1.0"
+    },
+    "languages": [
+      "python"
+    ],
+    "config": {
+      "include_globs": [
+        "**/*.py"
+      ],
+      "exclude_globs": [
+        "**/venv/**",
+        "**/__pycache__/**",
+        "**/.git/**",
+        "**/.remoroo/**",
+        "**/.remoroo_venvs/**"
+      ],
+      "max_file_bytes": 2000000
+    }
+  },
+  "files": [
+    {
+      "path": "jobber/__init__.py",
+      "sha256": "4c442d582dadab51b9392c561c719d0779bcf7be5fa3028e4ddabdb6f9186967",
+      "size_bytes": 59,
+      "mtime": 1767979081.8589144,
+      "language": "python",
+      "module": "jobber",
+      "imports": [],
+      "exports": [],
+      "top_level_symbols": [],
+      "entrypoints": []
+    },
+    {
+      "path": "jobber/__main__.py",
+      "sha256": "bc88cc7bd744bc9f366bc5d152b481b0923e9de7654b8a9313bbc57bea3d1484",
+      "size_bytes": 87,
+      "mtime": 1767979085.7693238,
+      "language": "python",
+      "module": "jobber.__main__",
+      "imports": [
+        "jobber.core.runner"
+      ],
+      "exports": [],
+      "top_level_symbols": [],
+      "entrypoints": [
+        {
+          "kind": "__main__",
+          "line_start": 4,
+          "line_end": 7
+        }
+      ]
+    },
+    {
+      "path": "jobber/core/eval.py",
+      "sha256": "e20b3cca9199563927e7c97cda0289d553a7034ae3950f3569f81bb38f299cf5",
+      "size_bytes": 343,
+      "mtime": 1767979125.6239738,
+      "language": "python",
+      "module": "jobber.core.eval",
+      "imports": [
+        "typing"
+      ],
+      "exports": [
+        "accuracy"
+      ],
+      "top_level_symbols": [
+        "sym:jobber.core.eval:accuracy#L4"
+      ],
+      "entrypoints": []
+    },
+    {
+      "path": "jobber/core/model.py",
+      "sha256": "74f3d649e9c0c18f7ab9a18ca9016829934e56a954b1e92b7f498c872fdc2339",
+      "size_bytes": 210,
+      "mtime": 1767979115.2131362,
+      "language": "python",
+      "module": "jobber.core.model",
+      "imports": [
+        "typing"
+      ],
+      "exports": [
+        "predict_from_counts"
+      ],
+      "top_level_symbols": [
+        "sym:jobber.core.model:predict_from_counts#L4"
+      ],
+      "entrypoints": []
+    },
+    {
+      "path": "jobber/core/runner.py",
+      "sha256": "c0055c0af3ec421584738f1999c87b60125cfb6e6b9ad958847eca71bdc5be9f",
+      "size_bytes": 843,
+      "mtime": 1767979265.4851122,
+      "language": "python",
+      "module": "jobber.core.runner",
+      "imports": [
+        "jobber.core.model",
+        "jobber.core.text",
+        "jobber.io.dataset",
+        "jobber.io.output",
+        "typing"
+      ],
+      "exports": [
+        "run"
+      ],
+      "top_level_symbols": [
+        "sym:jobber.core.runner:run#L9"
+      ],
+      "entrypoints": []
+    },
+    {
+      "path": "jobber/core/text.py",
+      "sha256": "5fc18c4f65b515bea37b079aad1b82a067105d38982cc098a72316c92277a748",
+      "size_bytes": 544,
+      "mtime": 1767979120.4111934,
+      "language": "python",
+      "module": "jobber.core.text",
+      "imports": [
+        "re",
+        "typing"
+      ],
+      "exports": [
+        "build_vocab",
+        "counts",
+        "tokenize"
+      ],
+      "top_level_symbols": [
+        "sym:jobber.core.text:tokenize#L5",
+        "sym:jobber.core.text:counts#L11",
+        "sym:jobber.core.text:build_vocab#L20"
+      ],
+      "entrypoints": []
+    },
+    {
+      "path": "jobber/io/dataset.py",
+      "sha256": "319c54814357900c016d144a734fad8d29d4542359639029a09332e73e4e2c95",
+      "size_bytes": 1252,
+      "mtime": 1767979260.7901464,
+      "language": "python",
+      "module": "jobber.io.dataset",
+      "imports": [
+        "json",
+        "os",
+        "random",
+        "typing"
+      ],
+      "exports": [
+        "load_dataset"
+      ],
+      "top_level_symbols": [
+        "sym:jobber.io.dataset:_ensure_dataset#L7",
+        "sym:jobber.io.dataset:load_dataset#L29"
+      ],
+      "entrypoints": []
+    },
+    {
+      "path": "jobber/io/output.py",
+      "sha256": "2869f6b23f822086d76342240aa259fcf107cad49058ace158e9983bba388117",
+      "size_bytes": 747,
+      "mtime": 1767979111.272631,
+      "language": "python",
+      "module": "jobber.io.output",
+      "imports": [
+        "json",
+        "os",
+        "typing"
+      ],
+      "exports": [
+        "load_predictions",
+        "write_predictions"
+      ],
+      "top_level_symbols": [
+        "sym:jobber.io.output:write_predictions#L6",
+        "sym:jobber.io.output:load_predictions#L14"
+      ],
+      "entrypoints": []
+    }
+  ],
+  "symbols": [
+    {
+      "id": "sym:jobber.core.eval:accuracy#L4",
+      "kind": "function",
+      "name": "accuracy",
+      "qualified_name": "jobber.core.eval.accuracy",
+      "file_path": "jobber/core/eval.py",
+      "span": {
+        "line_start": 4,
+        "line_end": 14
+      },
+      "signature": "def accuracy(rows",
+      "doc": "",
+      "exports": [],
+      "references": {
+        "calls": [],
+        "called_by": [],
+        "imports_used": [
+          "typing"
+        ]
+      },
+      "visibility": "public"
+    },
+    {
+      "id": "sym:jobber.core.model:predict_from_counts#L4",
+      "kind": "function",
+      "name": "predict_from_counts",
+      "qualified_name": "jobber.core.model.predict_from_counts",
+      "file_path": "jobber/core/model.py",
+      "span": {
+        "line_start": 4,
+        "line_end": 9
+      },
+      "signature": "def predict_from_counts(counts",
+      "doc": "",
+      "exports": [],
+      "references": {
+        "calls": [],
+        "called_by": [],
+        "imports_used": [
+          "typing"
+        ]
+      },
+      "visibility": "public"
+    },
+    {
+      "id": "sym:jobber.core.runner:run#L9",
+      "kind": "function",
+      "name": "run",
+      "qualified_name": "jobber.core.runner.run",
+      "file_path": "jobber/core/runner.py",
+      "span": {
+        "line_start": 9,
+        "line_end": 30
+      },
+      "signature": "def run() -> int",
+      "doc": "Entrypoint for `python -m jobber`.\nIntentionally does NOT emit metrics; it only writes predictions.",
+      "exports": [],
+      "references": {
+        "calls": [],
+        "called_by": [],
+        "imports_used": [
+          "jobber.core.model",
+          "jobber.core.text",
+          "jobber.io.dataset",
+          "jobber.io.output",
+          "typing"
+        ]
+      },
+      "visibility": "public"
+    },
+    {
+      "id": "sym:jobber.core.text:tokenize#L5",
+      "kind": "function",
+      "name": "tokenize",
+      "qualified_name": "jobber.core.text.tokenize",
+      "file_path": "jobber/core/text.py",
+      "span": {
+        "line_start": 5,
+        "line_end": 8
+      },
+      "signature": "def tokenize(text",
+      "doc": "",
+      "exports": [],
+      "references": {
+        "calls": [],
+        "called_by": [],
+        "imports_used": [
+          "re",
+          "typing"
+        ]
+      },
+      "visibility": "public"
+    },
+    {
+      "id": "sym:jobber.core.text:counts#L11",
+      "kind": "function",
+      "name": "counts",
+      "qualified_name": "jobber.core.text.counts",
+      "file_path": "jobber/core/text.py",
+      "span": {
+        "line_start": 11,
+        "line_end": 17
+      },
+      "signature": "def counts(tokens",
+      "doc": "",
+      "exports": [],
+      "references": {
+        "calls": [],
+        "called_by": [],
+        "imports_used": [
+          "re",
+          "typing"
+        ]
+      },
+      "visibility": "public"
+    },
+    {
+      "id": "sym:jobber.core.text:build_vocab#L20",
+      "kind": "function",
+      "name": "build_vocab",
+      "qualified_name": "jobber.core.text.build_vocab",
+      "file_path": "jobber/core/text.py",
+      "span": {
+        "line_start": 20,
+        "line_end": 21
+      },
+      "signature": "def build_vocab(size",
+      "doc": "",
+      "exports": [],
+      "references": {
+        "calls": [],
+        "called_by": [],
+        "imports_used": [
+          "re",
+          "typing"
+        ]
+      },
+      "visibility": "public"
+    },
+    {
+      "id": "sym:jobber.io.dataset:_ensure_dataset#L7",
+      "kind": "function",
+      "name": "_ensure_dataset",
+      "qualified_name": "jobber.io.dataset._ensure_dataset",
+      "file_path": "jobber/io/dataset.py",
+      "span": {
+        "line_start": 7,
+        "line_end": 26
+      },
+      "signature": "def _ensure_dataset(path",
+      "doc": "Create a deterministic dataset on first run.\nEach row: {\"id\": int, \"text\": str, \"label\": int}",
+      "exports": [],
+      "references": {
+        "calls": [],
+        "called_by": [],
+        "imports_used": [
+          "json",
+          "os",
+          "random",
+          "typing"
+        ]
+      },
+      "visibility": "private"
+    },
+    {
+      "id": "sym:jobber.io.dataset:load_dataset#L29",
+      "kind": "function",
+      "name": "load_dataset",
+      "qualified_name": "jobber.io.dataset.load_dataset",
+      "file_path": "jobber/io/dataset.py",
+      "span": {
+        "line_start": 29,
+        "line_end": 39
+      },
+      "signature": "def load_dataset(repo_root",
+      "doc": "",
+      "exports": [],
+      "references": {
+        "calls": [],
+        "called_by": [],
+        "imports_used": [
+          "json",
+          "os",
+          "random",
+          "typing"
+        ]
+      },
+      "visibility": "public"
+    },
+    {
+      "id": "sym:jobber.io.output:write_predictions#L6",
+      "kind": "function",
+      "name": "write_predictions",
+      "qualified_name": "jobber.io.output.write_predictions",
+      "file_path": "jobber/io/output.py",
+      "span": {
+        "line_start": 6,
+        "line_end": 11
+      },
+      "signature": "def write_predictions(repo_root",
+      "doc": "",
+      "exports": [],
+      "references": {
+        "calls": [],
+        "called_by": [],
+        "imports_used": [
+          "json",
+          "os",
+          "typing"
+        ]
+      },
+      "visibility": "public"
+    },
+    {
+      "id": "sym:jobber.io.output:load_predictions#L14",
+      "kind": "function",
+      "name": "load_predictions",
+      "qualified_name": "jobber.io.output.load_predictions",
+      "file_path": "jobber/io/output.py",
+      "span": {
+        "line_start": 14,
+        "line_end": 24
+      },
+      "signature": "def load_predictions(repo_root",
+      "doc": "",
+      "exports": [],
+      "references": {
+        "calls": [],
+        "called_by": [],
+        "imports_used": [
+          "json",
+          "os",
+          "typing"
+        ]
+      },
+      "visibility": "public"
+    }
+  ],
+  "graph": {
+    "module_deps": [
+      {
+        "from": "jobber.__main__",
+        "to": "jobber.core.runner",
+        "count": 1
+      },
+      {
+        "from": "jobber.core.runner",
+        "to": "jobber.core.model",
+        "count": 1
+      },
+      {
+        "from": "jobber.core.runner",
+        "to": "jobber.core.text",
+        "count": 1
+      },
+      {
+        "from": "jobber.core.runner",
+        "to": "jobber.io.dataset",
+        "count": 1
+      },
+      {
+        "from": "jobber.core.runner",
+        "to": "jobber.io.output",
+        "count": 1
+      }
+    ],
+    "symbol_calls": []
+  },
+  "entrypoints": [
+    {
+      "kind": "python_main",
+      "file_path": "jobber/__main__.py",
+      "symbol_id": null,
+      "how_to_run": "python -m jobber"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "case_id": "deadlock_fix",
+  "name": "Fix Deadlock in Resource Manager",
+  "description": "Fix a deadlock caused by inconsistent lock ordering in a multi-resource system",
+  "repo_path": "repo",
+  "goal": "Fix the deadlock in resource_manager.py. Two threads acquiring resources in different orders causes deadlock.",
+  "metrics": "completed_transfers == 1000",
+  "expected_outcome": "success",
+  "timeout_s": 120,
+  "max_turns": 10
+}
+

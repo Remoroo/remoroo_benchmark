@@ -1,0 +1,12 @@
+{
+  "case_id": "api_client_retry",
+  "name": "Implement Retry Logic with Exponential Backoff",
+  "description": "Add retry logic to an API client that fails on transient errors",
+  "repo_path": "repo",
+  "goal": "Implement retry logic with exponential backoff in api_client.py. The fetch_data() method should retry up to 3 times on transient errors (500, 502, 503, 504), with delays of 1s, 2s, 4s between retries. The test simulates a server that fails twice then succeeds.",
+  "metrics": "retry_works == true",
+  "expected_outcome": "success",
+  "timeout_s": 600,
+  "max_turns": 8
+}
+

@@ -1,0 +1,12 @@
+{
+  "case_id": "pareto_tradeoff_impossible",
+  "name": "Pareto Tradeoff Impossible (Should Fail)",
+  "description": "Synthetic repo with conflicting metrics by construction; stresses pareto/oscillation detection and early-stop.",
+  "repo_path": "repo",
+  "goal": "This benchmark is intentionally impossible: accuracy and fairness_gap are coupled such that improving one worsens the other. The engine should detect the tradeoff and stop early rather than thrashing.",
+  "metrics": "accuracy >= 0.90, fairness_gap <= 0.04",
+  "expected_outcome": "partial_success",
+  "timeout_s": 600,
+  "max_turns": 6
+}
+

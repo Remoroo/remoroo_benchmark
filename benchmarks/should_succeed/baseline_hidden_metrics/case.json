@@ -1,0 +1,10 @@
+{
+  "case_id": "baseline_hidden_metrics",
+  "repo_path": "repo",
+  "goal": "Make it faster without changing behavior.",
+  "metrics": "runtime_s <= 2.0, accuracy >= 0.92",
+  "expected_outcome": "success",
+  "timeout_s": 900,
+  "max_turns": 12
+}
+

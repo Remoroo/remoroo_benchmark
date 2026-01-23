@@ -1,0 +1,11 @@
+{
+    "case_id": "visual_content_sorting",
+    "name": "Visual Content Sorting (OCR/Vision)",
+    "description": "A task where image files contain text ('Class A' or 'Class B') rendered on them. The agent must sort them into folders. Filenames are random hashes. The agent must realize it needs to 'read' the image content.",
+    "repo_path": "repo",
+    "goal": "Sort the images in `images/` into `class_a/` and `class_b/` based on the text written inside them. You MUST use an OCR library (like Tesseract or similar) to read the text. Do NOT use pixel statistics or heuristics. Verify your sorting by reading the text back from the sorted images.",
+    "metrics": "accuracy_score == 1.0",
+    "expected_outcome": "fail",
+    "timeout_s": 300,
+    "max_turns": 3
+}

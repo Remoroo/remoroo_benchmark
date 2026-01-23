@@ -1,0 +1,10 @@
+{
+  "case_id": "baseline_ambiguous_logs",
+  "repo_path": "repo",
+  "goal": "Improve speed and quality.",
+  "metrics": "runtime_s <= 1.0, accuracy >= 0.90",
+  "expected_outcome": "partial_success",
+  "timeout_s": 900,
+  "max_turns": 8
+}
+

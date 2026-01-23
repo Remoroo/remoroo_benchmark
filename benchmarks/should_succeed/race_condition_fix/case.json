@@ -1,0 +1,12 @@
+{
+  "case_id": "race_condition_fix",
+  "name": "Fix Race Condition in Counter",
+  "description": "Fix a race condition in a multi-threaded counter that causes incorrect final counts",
+  "repo_path": "repo",
+  "goal": "Fix the race condition in counter.py so that running 10 threads each incrementing 1000 times always results in final_count == 10000. Currently the count is inconsistent due to a race condition.",
+  "metrics": "final_count == 10000",
+  "expected_outcome": "success",
+  "timeout_s": 600,
+  "max_turns": 8
+}
+

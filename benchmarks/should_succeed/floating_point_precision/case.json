@@ -1,0 +1,12 @@
+{
+  "case_id": "floating_point_precision",
+  "name": "Fix Numerical Instability in Statistics",
+  "description": "Fix catastrophic cancellation in variance calculation that gives wrong results for large values",
+  "repo_path": "repo",
+  "goal": "Fix the variance calculation in stats.py. The naive formula suffers from catastrophic cancellation when values are large. For data [1e9+1, 1e9+2, 1e9+3], variance should be ~0.667 but the buggy code returns negative or wildly wrong values. Use Welford's algorithm or two-pass calculation.",
+  "metrics": "variance_correct == true",
+  "expected_outcome": "success",
+  "timeout_s": 300,
+  "max_turns": 10
+}
+

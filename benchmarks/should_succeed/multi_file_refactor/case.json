@@ -1,0 +1,12 @@
+{
+  "case_id": "multi_file_refactor",
+  "name": "Refactor Circular Import",
+  "description": "Fix circular import error by refactoring code across multiple files",
+  "repo_path": "repo",
+  "goal": "Fix the circular import error in this project. Running 'python main.py' should print 'All operations completed successfully!' without any ImportError.",
+  "metrics": "code_runs == true",
+  "expected_outcome": "success",
+  "timeout_s": 600,
+  "max_turns": 8
+}
+

@@ -1,0 +1,11 @@
+{
+    "case_id": "system_dependency_failure",
+    "name": "System Dependency Failure (ImageMagick)",
+    "description": "A task that requires a system binary (ImageMagick 'convert') which cannot be installed via pip. The EnvDoctor should fail to fix this, leading to a benchmark failure.",
+    "repo_path": "repo",
+    "goal": "Run `main.py` successfully to verify ImageMagick is installed.",
+    "metrics": "runtime_s < 5",
+    "expected_outcome": "fail",
+    "timeout_s": 120,
+    "max_turns": 2
+}

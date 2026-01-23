@@ -1,0 +1,12 @@
+{
+  "case_id": "memory_leak_fix",
+  "name": "Fix Memory Leak in Cache",
+  "description": "Fix unbounded cache growth that causes memory issues",
+  "repo_path": "repo",
+  "goal": "Fix the memory leak in cache.py. The cache grows unbounded and never evicts old entries. Implement an LRU eviction policy with max_size=100. After processing 1000 items, memory_stable should be true (cache size <= 100).",
+  "metrics": "memory_stable == true",
+  "expected_outcome": "success",
+  "timeout_s": 600,
+  "max_turns": 8
+}
+

@@ -1,0 +1,12 @@
+{
+  "case_id": "data_pipeline_validation",
+  "name": "Data Pipeline with Schema Validation",
+  "description": "Build ETL pipeline that processes CSV to JSON with strict validation: correct schema, no nulls, minimum record count",
+  "repo_path": "repo",
+  "goal": "Fix the data pipeline in pipeline.py to process input.csv into output.json. Requirements: (1) output must have exactly the fields [id, name, email, score, category], (2) no null/empty values allowed, (3) must process at least 100 valid records. Save validation report to artifacts/validation.json.",
+  "metrics": "records_processed >= 100, null_count == 0, schema_valid == true",
+  "expected_outcome": "success",
+  "timeout_s": 300,
+  "max_turns": 8
+}
+

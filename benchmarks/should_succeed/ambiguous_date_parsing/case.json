@@ -1,0 +1,11 @@
+{
+    "case_id": "ambiguous_date_parsing",
+    "name": "Targeted Ambiguous Date Parsing (Locales)",
+    "description": "A Data Processing task where 'date' formats vary by 'region' (US=MM/DD/YYYY, UK=DD/MM/YYYY). The agent must calculate total sales for '2023-01' (January). Naive parsing will misinterpret days <= 12.",
+    "repo_path": "repo",
+    "goal": "Calculate the total sales for January 2023 (2023-01) from `data.csv`. Save the result as a single float in `result.txt`. You MUST respect the `region` column for date parsing.",
+    "metrics": "accuracy_score == 1.0",
+    "expected_outcome": "success",
+    "timeout_s": 300,
+    "max_turns": 3
+}

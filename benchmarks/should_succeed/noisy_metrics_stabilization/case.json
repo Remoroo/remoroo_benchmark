@@ -1,0 +1,12 @@
+{
+  "case_id": "noisy_metrics_stabilization",
+  "name": "Noisy Metrics Stabilization (Determinism + Threshold)",
+  "description": "A small repo where metrics are noisy due to missing seeding. The engine must make it deterministic and meet an accuracy threshold.",
+  "repo_path": "repo",
+  "goal": "The repo simulates an evaluation metric with noise. Fix the implementation so it becomes deterministic (seeded) and achieves accuracy >= 0.90. It must write artifacts/metrics.json containing accuracy and deterministic.",
+  "metrics": "accuracy >= 0.90, deterministic == true",
+  "expected_outcome": "success",
+  "timeout_s": 600,
+  "max_turns": 6
+}
+

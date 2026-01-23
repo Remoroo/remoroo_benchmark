@@ -1,0 +1,10 @@
+{
+  "case_id": "baseline_log_aliases",
+  "repo_path": "repo",
+  "goal": "Improve performance without harming quality.",
+  "metrics": "runtime_s <= 2.0, accuracy >= 0.90",
+  "expected_outcome": "success",
+  "timeout_s": 900,
+  "max_turns": 10
+}
+

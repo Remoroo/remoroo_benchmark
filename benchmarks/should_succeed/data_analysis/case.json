@@ -1,0 +1,11 @@
+{
+  "case_id": "data_analysis",
+  "name": "Calculate Mean from CSV",
+  "description": "Write a script to calculate the mean of values in a CSV file",
+  "repo_path": "repo",
+  "goal": "Create a Python script that reads data.csv and calculates the mean of the 'value' column. Print the result as 'mean_value: X.XX'",
+  "metrics": "mean_value is correct",
+  "expected_outcome": "success",
+  "timeout_s": 300,
+  "max_turns": 3
+}

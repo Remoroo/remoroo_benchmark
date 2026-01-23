@@ -1,0 +1,11 @@
+{
+    "case_id": "readiness_check",
+    "name": "Readiness Check",
+    "description": "Verify the engine can perform a simple plan-patch-test loop.",
+    "repo_path": "repo",
+    "goal": "Add a multiply function to calc.py and a corresponding test in test_calc.py.",
+    "metrics": "tests_passed == true",
+    "expected_outcome": "success",
+    "timeout_s": 300,
+    "max_turns": 8
+}

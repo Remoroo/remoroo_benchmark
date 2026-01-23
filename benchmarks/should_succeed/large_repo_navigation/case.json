@@ -1,0 +1,11 @@
+{
+    "case_id": "large_repo_navigation",
+    "name": "Large Repo Navigation",
+    "description": "Navigate a large, noisy repository to fix a specific bug in a deep module.",
+    "repo_path": "repo",
+    "goal": "Fix the calculate_invoice_total function in the billing system to raise a ValueError for negative quantities.",
+    "metrics": "tests_passed == true",
+    "expected_outcome": "success",
+    "timeout_s": 900,
+    "max_turns": 20
+}

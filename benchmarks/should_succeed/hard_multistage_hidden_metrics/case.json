@@ -1,0 +1,12 @@
+{
+  "case_id": "hard_multistage_hidden_metrics",
+  "name": "Hard Multi-stage Hidden Metrics",
+  "description": "A multi-stage training/evaluation repo that requires multi-file optimization plus careful behavior preservation.",
+  "repo_path": "repo",
+  "goal": "Improve this repository so the training + evaluation workflow runs faster and more reliably while preserving the CLI behavior and outputs.",
+  "metrics": "runtime_s <= 2.0, validation_accuracy >= 0.93",
+  "expected_outcome": "success",
+  "timeout_s": 1200,
+  "max_turns": 14
+}
+

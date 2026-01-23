@@ -1,0 +1,11 @@
+{
+    "case_id": "eda_blind_spot",
+    "name": "EDA Blind Spot (Corrupted Data)",
+    "description": "A Data Science task where the agent must perform EDA to discover and filter out specific error codes (encoded as -999) before training a model. Without specific cleaning, the model will fail to meet the R^2 threshold.",
+    "repo_path": "repo",
+    "goal": "Train a regression model in `train.py` to predict `y` from `x` using `data.csv`. The model must achieve R^2 >= 0.9 on a held-out test set (generated internally). You must inspect the data to identify and handle any quality issues.",
+    "metrics": "r2_score >= 0.9",
+    "expected_outcome": "sucess",
+    "timeout_s": 300,
+    "max_turns": 3
+}

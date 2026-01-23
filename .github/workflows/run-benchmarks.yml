@@ -1,0 +1,52 @@
+name: Remoroo Benchmark Run
+
+on:
+  workflow_dispatch:
+    inputs:
+      include:
+        description: 'Glob pattern for benchmarks to include'
+        required: true
+        default: '*'
+
+jobs:
+  run-benchmarks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Dependencies
+        run: |
+          pip install -r requirements.txt
+          # Install the Remoroo CLI package.
+          # If this is not on PyPI, use: pip install git+https://github.com/remoroo/remoroo_cli.git
+          pip install remoroo
+
+      - name: Configure Remoroo
+        run: |
+          mkdir -p ~/.config/remoroo
+          echo "${{ secrets.REMOROO_API_KEY }}" > ~/.config/remoroo/api_key
+          remoroo login --key ${{ secrets.REMOROO_API_KEY }}
+
+      - name: Run Benchmarks
+        run: |
+          python bench_runner.py --include "${{ github.event.inputs.include }}" --output leaderboard.json
+
+      - name: Upload Leaderboard Result
+        uses: actions/upload-artifact@v4
+        with:
+          name: leaderboard-data
+          path: leaderboard.json
+
+      - name: Publish to Website (Mock)
+        # In a real setup, this would push to an S3 bucket or trigger a website rebuild
+        run: |
+          echo "Publishing leaderboard.json to Remoroo Infrastructure..."
+          curl -X POST -H "Authorization: Bearer ${{ secrets.REBUILD_TOKEN }}" \
+               -F "file=@leaderboard.json" \
+               https://api.remoroo.com/v1/benchmarks/publish

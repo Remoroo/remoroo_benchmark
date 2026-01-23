@@ -1,0 +1,12 @@
+{
+  "case_id": "async_refactor",
+  "name": "Refactor Callback Hell to Async/Await",
+  "description": "Convert deeply nested callback-based code to clean async/await pattern",
+  "repo_path": "repo",
+  "goal": " The current code has 5 levels of nested callbacks making it unreadable and error-prone. Convert to async functions while preserving the same behavior.",
+  "metrics": "refactor_complete == true",
+  "expected_outcome": "success",
+  "timeout_s": 600,
+  "max_turns": 12
+}
+

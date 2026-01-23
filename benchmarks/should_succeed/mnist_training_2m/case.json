@@ -1,0 +1,11 @@
+{
+  "case_id": "mnist_training_2m",
+  "name": "MNIST Training with PyTorch",
+  "description": "Download and train a neural network to classify MNIST digits using torch with validation accuracy metric",
+  "repo_path": "repo",
+  "goal": "Download and train a neural network to classify MNIST digits using torch",
+  "metrics": "validation_accuracy >= 0.97, and inference_time <= 100ms",
+  "expected_outcome": "success",
+  "timeout_s": 3600,
+  "max_turns": 20
+}

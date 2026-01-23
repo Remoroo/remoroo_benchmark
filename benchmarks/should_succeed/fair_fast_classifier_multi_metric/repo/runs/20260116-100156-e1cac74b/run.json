@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0",
+  "run_id": "run-1768550528",
+  "created_at": 1768550529.7276144,
+  "updated_at": 1768550529.7276988,
+  "mode": "local",
+  "metadata": {},
+  "turns": [],
+  "refs": {
+    "metrics": "metrics_consolidated.json",
+    "final_report": "final_report.json",
+    "events": "events.ndjson",
+    "storyboard": "storyboard.json",
+    "highlights": "highlights.json"
+  }
+}

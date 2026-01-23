@@ -1,0 +1,11 @@
+{
+  "case_id": "translation_task",
+  "name": "translation task to english",
+  "description": "",
+  "repo_path": "repo",
+  "goal": "have the patcher translate the text file from arabic to english and save it as english.txt",
+  "metrics": "METEOR",
+  "expected_outcome": "undetermined",
+  "timeout_s": 3600,
+  "max_turns": 20
+}

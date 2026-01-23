@@ -1,0 +1,405 @@
+{
+  "schema_version": "1.0",
+  "repo": {
+    "root": "/Users/adham/Downloads/remoroo_offline_engine/benchmarks/should_succeed/baseline_log_aliases/repo",
+    "name": "repo",
+    "default_branch": "main",
+    "vcs": {
+      "type": "git",
+      "head_commit": "642512a2433e949e737a891cf70dc398c0419a7d"
+    }
+  },
+  "build": {
+    "created_at": "2026-01-09T17:47:32.196373Z",
+    "indexer": {
+      "name": "remoroo-indexer",
+      "version": "0.1.0"
+    },
+    "languages": [
+      "python"
+    ],
+    "config": {
+      "include_globs": [
+        "**/*.py"
+      ],
+      "exclude_globs": [
+        "**/venv/**",
+        "**/__pycache__/**",
+        "**/.git/**",
+        "**/.remoroo/**"
+      ],
+      "max_file_bytes": 2000000
+    }
+  },
+  "files": [
+    {
+      "path": "hiddenapp/__init__.py",
+      "sha256": "d672bd8db74fbeefc0f7282230c5b1b30e7cb32e3096a4b27f7c27836f037763",
+      "size_bytes": 61,
+      "mtime": 1767979023.0670533,
+      "language": "python",
+      "module": "hiddenapp",
+      "imports": [],
+      "exports": [],
+      "top_level_symbols": [],
+      "entrypoints": []
+    },
+    {
+      "path": "hiddenapp/__main__.py",
+      "sha256": "2cdd23d4f5cd6c3b3e4cb690ad16d560637767b9ca5b2a3cf129fcc0a5ebc82b",
+      "size_bytes": 81,
+      "mtime": 1767979027.6475964,
+      "language": "python",
+      "module": "hiddenapp.__main__",
+      "imports": [
+        "cli"
+      ],
+      "exports": [],
+      "top_level_symbols": [],
+      "entrypoints": [
+        {
+          "kind": "__main__",
+          "line_start": 4,
+          "line_end": 7
+        }
+      ]
+    },
+    {
+      "path": "hiddenapp/cli.py",
+      "sha256": "9fab83e9ed28d40b2345e98a860ed486422e0f8fa4114c60fbaa73177f448773",
+      "size_bytes": 666,
+      "mtime": 1767979035.8668275,
+      "language": "python",
+      "module": "hiddenapp.cli",
+      "imports": [
+        "json",
+        "os",
+        "pipeline.run",
+        "time"
+      ],
+      "exports": [
+        "main"
+      ],
+      "top_level_symbols": [
+        "sym:hiddenapp.cli:main#L8"
+      ],
+      "entrypoints": [
+        {
+          "kind": "function",
+          "name": "main",
+          "line_start": 8,
+          "line_end": 24
+        }
+      ]
+    },
+    {
+      "path": "hiddenapp/pipeline/data.py",
+      "sha256": "5ecad754e999270be1b8943da811852d95af63e53c2c33b7ef8338d8a18ff0f9",
+      "size_bytes": 727,
+      "mtime": 1767979245.4783669,
+      "language": "python",
+      "module": "hiddenapp.pipeline.data",
+      "imports": [
+        "random",
+        "typing"
+      ],
+      "exports": [
+        "make_dataset"
+      ],
+      "top_level_symbols": [
+        "sym:hiddenapp.pipeline.data:make_dataset#L5"
+      ],
+      "entrypoints": []
+    },
+    {
+      "path": "hiddenapp/pipeline/features.py",
+      "sha256": "2ff2d9d15ead1bfcfcb4c0bfc9fdacf35cc4c46d8d6cb655aeacf778ef8a80ae",
+      "size_bytes": 438,
+      "mtime": 1767979060.0647318,
+      "language": "python",
+      "module": "hiddenapp.pipeline.features",
+      "imports": [
+        "typing"
+      ],
+      "exports": [
+        "build_vocab_list",
+        "featurize"
+      ],
+      "top_level_symbols": [
+        "sym:hiddenapp.pipeline.features:featurize#L4",
+        "sym:hiddenapp.pipeline.features:build_vocab_list#L16"
+      ],
+      "entrypoints": []
+    },
+    {
+      "path": "hiddenapp/pipeline/model.py",
+      "sha256": "04d92fd270000f16d2c1aca47e9cee16fbc6495e0723e63b0be332fd1207e593",
+      "size_bytes": 206,
+      "mtime": 1767979055.669125,
+      "language": "python",
+      "module": "hiddenapp.pipeline.model",
+      "imports": [
+        "typing"
+      ],
+      "exports": [
+        "predict"
+      ],
+      "top_level_symbols": [
+        "sym:hiddenapp.pipeline.model:predict#L4"
+      ],
+      "entrypoints": []
+    },
+    {
+      "path": "hiddenapp/pipeline/run.py",
+      "sha256": "17ea4537f6003a748517821b188ade4caec3affb2799c39cfa00d17ad1df1745",
+      "size_bytes": 961,
+      "mtime": 1767979253.9421673,
+      "language": "python",
+      "module": "hiddenapp.pipeline.run",
+      "imports": [
+        "data",
+        "features",
+        "model",
+        "tokenize",
+        "typing"
+      ],
+      "exports": [
+        "accuracy",
+        "run_job"
+      ],
+      "top_level_symbols": [
+        "sym:hiddenapp.pipeline.run:accuracy#L9",
+        "sym:hiddenapp.pipeline.run:run_job#L17"
+      ],
+      "entrypoints": []
+    },
+    {
+      "path": "hiddenapp/pipeline/tokenize.py",
+      "sha256": "696baec45b0aa84eae5c30c427003a286f2d52f4cbd07ea8ab2b899950db17b0",
+      "size_bytes": 272,
+      "mtime": 1767979050.5630147,
+      "language": "python",
+      "module": "hiddenapp.pipeline.tokenize",
+      "imports": [
+        "re",
+        "typing"
+      ],
+      "exports": [
+        "tokenize"
+      ],
+      "top_level_symbols": [
+        "sym:hiddenapp.pipeline.tokenize:tokenize#L5"
+      ],
+      "entrypoints": []
+    }
+  ],
+  "symbols": [
+    {
+      "id": "sym:hiddenapp.cli:main#L8",
+      "kind": "function",
+      "name": "main",
+      "qualified_name": "hiddenapp.cli.main",
+      "file_path": "hiddenapp/cli.py",
+      "span": {
+        "line_start": 8,
+        "line_end": 24
+      },
+      "signature": "def main() -> int",
+      "doc": "",
+      "exports": [],
+      "references": {
+        "calls": [],
+        "called_by": [],
+        "imports_used": [
+          "json",
+          "os",
+          "pipeline.run",
+          "time"
+        ]
+      },
+      "visibility": "public"
+    },
+    {
+      "id": "sym:hiddenapp.pipeline.data:make_dataset#L5",
+      "kind": "function",
+      "name": "make_dataset",
+      "qualified_name": "hiddenapp.pipeline.data.make_dataset",
+      "file_path": "hiddenapp/pipeline/data.py",
+      "span": {
+        "line_start": 5,
+        "line_end": 21
+      },
+      "signature": "def make_dataset(seed",
+      "doc": "Deterministic synthetic dataset.\nLabel is 1 if any of the 'hot' tokens appear.",
+      "exports": [],
+      "references": {
+        "calls": [],
+        "called_by": [],
+        "imports_used": [
+          "random",
+          "typing"
+        ]
+      },
+      "visibility": "public"
+    },
+    {
+      "id": "sym:hiddenapp.pipeline.features:featurize#L4",
+      "kind": "function",
+      "name": "featurize",
+      "qualified_name": "hiddenapp.pipeline.features.featurize",
+      "file_path": "hiddenapp/pipeline/features.py",
+      "span": {
+        "line_start": 4,
+        "line_end": 13
+      },
+      "signature": "def featurize(tokens",
+      "doc": "Intentionally inefficient:\n- list membership check makes this O(n * vocab)",
+      "exports": [],
+      "references": {
+        "calls": [],
+        "called_by": [],
+        "imports_used": [
+          "typing"
+        ]
+      },
+      "visibility": "public"
+    },
+    {
+      "id": "sym:hiddenapp.pipeline.features:build_vocab_list#L16",
+      "kind": "function",
+      "name": "build_vocab_list",
+      "qualified_name": "hiddenapp.pipeline.features.build_vocab_list",
+      "file_path": "hiddenapp/pipeline/features.py",
+      "span": {
+        "line_start": 16,
+        "line_end": 17
+      },
+      "signature": "def build_vocab_list(size",
+      "doc": "",
+      "exports": [],
+      "references": {
+        "calls": [],
+        "called_by": [],
+        "imports_used": [
+          "typing"
+        ]
+      },
+      "visibility": "public"
+    },
+    {
+      "id": "sym:hiddenapp.pipeline.model:predict#L4",
+      "kind": "function",
+      "name": "predict",
+      "qualified_name": "hiddenapp.pipeline.model.predict",
+      "file_path": "hiddenapp/pipeline/model.py",
+      "span": {
+        "line_start": 4,
+        "line_end": 9
+      },
+      "signature": "def predict(counts",
+      "doc": "",
+      "exports": [],
+      "references": {
+        "calls": [],
+        "called_by": [],
+        "imports_used": [
+          "typing"
+        ]
+      },
+      "visibility": "public"
+    },
+    {
+      "id": "sym:hiddenapp.pipeline.run:accuracy#L9",
+      "kind": "function",
+      "name": "accuracy",
+      "qualified_name": "hiddenapp.pipeline.run.accuracy",
+      "file_path": "hiddenapp/pipeline/run.py",
+      "span": {
+        "line_start": 9,
+        "line_end": 14
+      },
+      "signature": "def accuracy(y_true",
+      "doc": "",
+      "exports": [],
+      "references": {
+        "calls": [],
+        "called_by": [],
+        "imports_used": [
+          "data",
+          "features",
+          "model",
+          "tokenize",
+          "typing"
+        ]
+      },
+      "visibility": "public"
+    },
+    {
+      "id": "sym:hiddenapp.pipeline.run:run_job#L17",
+      "kind": "function",
+      "name": "run_job",
+      "qualified_name": "hiddenapp.pipeline.run.run_job",
+      "file_path": "hiddenapp/pipeline/run.py",
+      "span": {
+        "line_start": 17,
+        "line_end": 37
+      },
+      "signature": "def run_job() -> float",
+      "doc": "Correct but slow implementation; intended to be optimized by the engine.",
+      "exports": [],
+      "references": {
+        "calls": [],
+        "called_by": [],
+        "imports_used": [
+          "data",
+          "features",
+          "model",
+          "tokenize",
+          "typing"
+        ]
+      },
+      "visibility": "public"
+    },
+    {
+      "id": "sym:hiddenapp.pipeline.tokenize:tokenize#L5",
+      "kind": "function",
+      "name": "tokenize",
+      "qualified_name": "hiddenapp.pipeline.tokenize.tokenize",
+      "file_path": "hiddenapp/pipeline/tokenize.py",
+      "span": {
+        "line_start": 5,
+        "line_end": 12
+      },
+      "signature": "def tokenize(text",
+      "doc": "Intentionally slow:\n- compiles regex each call\n- uses a slightly heavier pattern than needed",
+      "exports": [],
+      "references": {
+        "calls": [],
+        "called_by": [],
+        "imports_used": [
+          "re",
+          "typing"
+        ]
+      },
+      "visibility": "public"
+    }
+  ],
+  "graph": {
+    "module_deps": [],
+    "symbol_calls": []
+  },
+  "entrypoints": [
+    {
+      "kind": "python_main",
+      "file_path": "hiddenapp/__main__.py",
+      "symbol_id": null,
+      "how_to_run": "python -m hiddenapp"
+    },
+    {
+      "kind": "python_function",
+      "file_path": "hiddenapp/cli.py",
+      "symbol_id": "sym:hiddenapp.cli:main#L8",
+      "how_to_run": "python -c \"from hiddenapp.cli import main as _f; raise SystemExit(_f())\""
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "case_id": "graph_cycle_detection",
+  "name": "Fix Cycle Detection in Directed Graph",
+  "description": "Fix broken cycle detection that gives false positives due to incorrect visited state tracking",
+  "repo_path": "repo",
+  "goal": "Fix the has_cycle() function in graph.py. The current implementation incorrectly reports cycles in DAGs because it doesn't distinguish between nodes currently in the recursion stack vs nodes that were visited in a previous DFS path. Use three-color marking (white/gray/black) or separate 'in_stack' tracking.",
+  "metrics": "all_tests_pass == true",
+  "expected_outcome": "success",
+  "timeout_s": 300,
+  "max_turns": 10
+}
+

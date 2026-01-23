@@ -1,0 +1,12 @@
+{
+  "case_id": "patch_brittle_repeated_blocks",
+  "name": "Patch Brittle Repeated Blocks",
+  "description": "A repo with repeated code blocks; stresses patch precision and avoids wrong-block edits.",
+  "repo_path": "repo",
+  "goal": "Fix the bug in `math_utils.py` so that `safe_divide(10, 0)` returns None (not crash) while keeping `unsafe_divide` unchanged. Do not change metric names. Ensure artifacts/metrics.json reports code_runs=true.",
+  "metrics": "code_runs == true",
+  "expected_outcome": "success",
+  "timeout_s": 600,
+  "max_turns": 4
+}
+

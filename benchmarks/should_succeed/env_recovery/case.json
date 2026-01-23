@@ -1,0 +1,11 @@
+{
+    "case_id": "env_recovery",
+    "name": "Environment Recovery (Env Doctor)",
+    "description": "A repository with missing dependencies. The Environment Doctor must detect the missing package (requests) and install it to make the environment healthy.",
+    "repo_path": "repo",
+    "goal": "Run the main.py script successfully.",
+    "metrics": "exit_code == 0",
+    "expected_outcome": "success",
+    "timeout_s": 300,
+    "max_turns": 3
+}

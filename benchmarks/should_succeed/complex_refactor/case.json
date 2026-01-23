@@ -1,0 +1,11 @@
+{
+    "case_id": "complex_refactor",
+    "name": "Complex Refactor",
+    "description": "Refactor a monolithic legacy processor into modular classes.",
+    "repo_path": "repo",
+    "goal": "Refactor legacy_processor.py by extracting the DataValidator and DataTransformer logic into separate classes/files. Ensure process_data still works.",
+    "metrics": "tests_passed == true",
+    "expected_outcome": "success",
+    "timeout_s": 600,
+    "max_turns": 15
+}
