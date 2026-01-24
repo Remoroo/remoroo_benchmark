@@ -22,6 +22,18 @@ Benchmarks are intended to be run on-demand via GitHub Actions.
 python bench_runner.py --include "should_succeed/*"
 ```
 
+## Latest Benchmark Results
+
+<!-- BENCHMARK_START -->
+| Metric | Value |
+| :--- | :--- |
+| **Success Rate (BSR)** | 0.0% |
+| **Completion Rate** | 0.0% |
+| **Total Tests Run** | 1 |
+
+*Last updated: 2026-01-24 21:02:51*
+<!-- BENCHMARK_END -->
+
 ## Public Leaderboard
 
 The results of the latest benchmark runs are published live to the [Remoroo Engineering Leaderboard](https://www.remoroo.com/).
