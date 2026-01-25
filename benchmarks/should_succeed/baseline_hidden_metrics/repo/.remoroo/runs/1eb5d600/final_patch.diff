@@ -1,0 +1,308 @@
+diff --git a/jobber/core/eval.py b/jobber/core/eval.py
+index a36d0e4..59d14b5 100644
+--- a/jobber/core/eval.py
++++ b/jobber/core/eval.py
+@@ -1,5 +1,9 @@
+ from typing import Dict, List
+-
++import os
++import json
++import time
++from jobber.io.output import load_predictions
++from jobber.io.dataset import load_dataset
+ 
+ def accuracy(rows: List[Dict[str, object]], preds: Dict[int, int]) -> float:
+     correct = 0
+@@ -13,3 +17,23 @@ def accuracy(rows: List[Dict[str, object]], preds: Dict[int, int]) -> float:
+             correct += 1
+     return correct / max(1, total)
+ 
++def main():
++    repo_root = "."
++    t0 = time.perf_counter()
++    rows = load_dataset(repo_root)
++    preds = load_predictions(repo_root)
++    acc = accuracy(rows, preds)
++    t1 = time.perf_counter()
++    runtime_s = t1 - t0
++    # Write metrics.json
++    os.makedirs(os.path.join(repo_root, "artifacts"), exist_ok=True)
++    metrics_path = os.path.join(repo_root, "artifacts", "metrics.json")
++    metrics = {"accuracy": acc, "runtime_s": runtime_s}
++    with open(metrics_path, "w") as f:
++        json.dump(metrics, f)
++    print(f"accuracy: {acc}")
++    print(f"runtime_s: {runtime_s:.4f}")
++    return 0
++
++if __name__ == "__main__":
++    main()
+diff --git a/jobber/core/runner.py b/jobber/core/runner.py
+index 5284e62..f804af1 100644
+--- a/jobber/core/runner.py
++++ b/jobber/core/runner.py
+@@ -1,17 +1,75 @@
+ from typing import Dict, List
++import os
++import pathlib
++import json
++import time
++import sys
+ 
+ from ..io.dataset import load_dataset
+-from ..io.output import write_predictions
++from ..io.output import write_predictions, load_predictions
+ from .model import predict_from_counts
+ from .text import build_vocab, counts, tokenize
+ 
++def _emit_metrics_artifacts(metrics: dict, phase: str):
++    # Use REMOROO_ARTIFACTS_DIR for all artifact paths
++    artifacts_dir = pathlib.Path(os.environ["REMOROO_ARTIFACTS_DIR"])
++    artifacts_dir.mkdir(exist_ok=True)
++    targets = []
++    if phase == "baseline":
++        targets.append(artifacts_dir / "baseline_metrics.json")
++    else:
++        targets.append(artifacts_dir / "current_metrics.json")
++    targets.append(artifacts_dir / "metrics.json")
++    for target_file in targets:
++        print(f"DEBUG: Checking {target_file}, exists={target_file.exists()}")
++        data = {}
++        if target_file.exists():
++            try:
++                with open(target_file, "r") as f:
++                    data = json.load(f)
++                    print(f"DEBUG: Read merged keys: {list(data.get('metrics', {}).keys())}")
++            except Exception as e:
++                print(f"DEBUG: Failed to read {target_file}: {e}")
++                data = {}
++        # Initialize A-pattern if needed
++        if "metrics" not in data:
++            data["metrics"] = {}
++            data["version"] = 1
++            data["phase"] = phase
++            data["created_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
++        # Update metrics
++        for k, v in metrics.items():
++            data["metrics"][k] = v
++        # metrics_with_units
++        if "metrics_with_units" not in data:
++            data["metrics_with_units"] = {}
++        for k, v in metrics.items():
++            if k == "runtime_s":
++                data["metrics_with_units"][k] = {"value": v, "unit": "s"}
++            elif k == "accuracy":
++                data["metrics_with_units"][k] = {"value": v, "unit": ""}
++            else:
++                data["metrics_with_units"][k] = {"value": v, "unit": ""}
++        data["source"] = "jobber_instrumentation_v1"
++        # For metrics.json, also update baseline_metrics if in baseline phase
++        if phase == "baseline" and target_file.name == "metrics.json":
++            if "baseline_metrics" not in data:
++                data["baseline_metrics"] = {}
++            for k, v in metrics.items():
++                data["baseline_metrics"][k] = v
++        print(f"DEBUG: Writing keys: {list(data['metrics'].keys())}")
++        with open(target_file, "w") as f:
++            json.dump(data, f, indent=2)
+ 
+ def run() -> int:
+     """
+     Entrypoint for `python -m jobber`.
+-    Intentionally does NOT emit metrics; it only writes predictions.
++    Now emits metrics artifacts in addition to predictions.
+     """
++    import time as _time
+     repo_root = "."
++    phase = os.environ.get("REMOROO_METRICS_PHASE", "current")
++    t0 = _time.perf_counter()
+     rows = load_dataset(repo_root)
+     vocab = build_vocab()
+ 
+@@ -27,5 +85,14 @@ def run() -> int:
+             preds.append({"id": int(r["id"]), "pred": int(pred)})
+ 
+     write_predictions(repo_root, preds)
++    t1 = _time.perf_counter()
++    # Compute accuracy
++    # True labels are in dataset
++    y_true = [int(r["label"]) for r in rows]
++    y_pred = [int(p["pred"]) for p in preds]
++    correct = sum(1 for a, b in zip(y_true, y_pred) if a == b)
++    accuracy = correct / len(y_true) if y_true else 0.0
++    runtime_s = t1 - t0
++    metrics = {"runtime_s": runtime_s, "accuracy": accuracy}
++    _emit_metrics_artifacts(metrics, phase)
+     return 0
+-
+diff --git a/jobber/io/output.py b/jobber/io/output.py
+index 60cbbde..729eee5 100644
+--- a/jobber/io/output.py
++++ b/jobber/io/output.py
+@@ -2,7 +2,6 @@ import json
+ import os
+ from typing import Dict, List
+ 
+-
+ def write_predictions(repo_root: str, preds: List[Dict[str, int]]) -> None:
+     os.makedirs(os.path.join(repo_root, "artifacts"), exist_ok=True)
+     path = os.path.join(repo_root, "artifacts", "preds.jsonl")
+@@ -10,7 +9,6 @@ def write_predictions(repo_root: str, preds: List[Dict[str, int]]) -> None:
+         for p in preds:
+             f.write(json.dumps(p) + "\n")
+ 
+-
+ def load_predictions(repo_root: str) -> Dict[int, int]:
+     path = os.path.join(repo_root, "artifacts", "preds.jsonl")
+     out: Dict[int, int] = {}
+@@ -22,4 +20,3 @@ def load_predictions(repo_root: str) -> Dict[int, int]:
+             obj = json.loads(line)
+             out[int(obj["id"])] = int(obj["pred"])
+     return out
+-
+diff --git a/main.py b/main.py
+new file mode 100644
+index 0000000..7ccba30
+--- /dev/null
++++ b/main.py
+@@ -0,0 +1,34 @@
++import sys
++import time
++from jobber.core.runner import run
++
++def main():
++    start_time = time.perf_counter()
++    # Run the main jobber logic and capture metrics
++    result = run()
++    end_time = time.perf_counter()
++    runtime_s = end_time - start_time
++
++    # Try to read metrics from the artifacts if available
++    import os
++    import json
++    metrics_path = os.path.join("artifacts", "metrics.json")
++    accuracy = None
++    if os.path.exists(metrics_path):
++        try:
++            with open(metrics_path, "r") as f:
++                metrics = json.load(f)
++                accuracy = metrics.get("accuracy")
++        except Exception:
++            pass
++
++    # Print runtime and accuracy for instrumentation
++    print(f"runtime_s: {runtime_s:.4f}")
++    if accuracy is not None:
++        print(f"accuracy: {accuracy}")
++    else:
++        print("accuracy: N/A")
++    return result
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/remoroo_monitor.py b/remoroo_monitor.py
+new file mode 100644
+index 0000000..e593c4a
+--- /dev/null
++++ b/remoroo_monitor.py
+@@ -0,0 +1,100 @@
++"""
++Runtime monitoring helper for Remoroo instrumentation.
++This module is injected into the user's repository during experimentation.
++It provides a safe, atomic way to emit metrics without race conditions.
++"""
++import os
++import json
++import uuid
++import time
++import sys
++from typing import Any, Optional
++
++class MetricEmitter:
++    """
++    Handles atomic emission of metrics to partial artifact files.
++    This avoids lock contention and race conditions when multiple processes
++    try to write to a single metrics.json file.
++    """
++    
++    def __init__(self, artifact_dir: Optional[str] = None):
++        """
++        Initialize the emitter.
++        
++        Args:
++            artifact_dir: Optional explicit path. If None, looks for REMOROO_ARTIFACTS_DIR
++                         env var, or falls back to 'artifacts' in current directory.
++        """
++        self.artifact_dir = (
++            artifact_dir 
++            or os.environ.get("REMOROO_ARTIFACTS_DIR") 
++            or os.path.join(os.getcwd(), "artifacts")
++        )
++        # Ensure it exists (safe mkdir)
++        try:
++            os.makedirs(self.artifact_dir, exist_ok=True)
++        except Exception:
++            pass
++            
++        self.pid = os.getpid()
++        self.process_uuid = str(uuid.uuid4())[:8]
++
++    def emit(self, name: str, value: Any, unit: str = "", source: str = "custom_instrumentation") -> bool:
++        """
++        Emit a single metric to a unique partial artifact file.
++        
++        Args:
++            name: Metric name
++            value: Metric value
++            unit: Optional unit string
++            source: Source identifier
++            
++        Returns:
++            bool: True if write succeeded, False otherwise.
++        """
++        try:
++            timestamp = time.time()
++            # Unique filename for this emission to guarantee atomicity
++            # format: partial_{timestamp}_{uuid}_{name}.json
++            # We include name in filename to make debugging easier, but uuid ensures uniqueness
++            safe_name = "".join(c for c in name if c.isalnum() or c in "._-")[:50]
++            filename = f"partial_{timestamp:.6f}_{self.process_uuid}_{safe_name}.json"
++            filepath = os.path.join(self.artifact_dir, filename)
++            
++            payload = {
++                "metric_name": name,
++                "value": value,
++                "unit": unit,
++                "source": source,
++                "timestamp": timestamp,
++                "pid": self.pid,
++                "process_uuid": self.process_uuid,
++                "version": "1.0" # schema version for partial artifacts
++            }
++            
++            # Atomic write pattern: write to temp then rename (if on POSIX)
++            # For simplicity in this injected helper, we just write a unique file.
++            # Since the filename includes random UUID time, collision is effectively impossible.
++            with open(filepath, "w", encoding="utf-8") as f:
++                json.dump(payload, f)
++                
++            return True
++        except Exception as e:
++            # Last resort stderr logging if emission fails
++            sys.stderr.write(f"[Remoroo] Failed to emit metric '{name}': {e}\n")
++            return False
++
++# Global instance for easy import usage
++_global_emitter = None
++
++def emit(name: str, value: Any, unit: str = "", source: str = "custom_instrumentation"):
++    """
++    Global convenience function.
++    Usage:
++        import monitor
++        monitor.emit("accuracy", 0.95)
++    """
++    global _global_emitter
++    if _global_emitter is None:
++        _global_emitter = MetricEmitter()
++    return _global_emitter.emit(name, value, unit, source)

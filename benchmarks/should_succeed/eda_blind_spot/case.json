@@ -5,7 +5,7 @@
     "repo_path": "repo",
     "goal": "Train a regression model in `train.py` to predict `y` from `x` using `data.csv`. The model must achieve R^2 >= 0.9 on a held-out test set (generated internally). You must inspect the data to identify and handle any quality issues.",
     "metrics": "r2_score >= 0.9",
-    "expected_outcome": "sucess",
+    "expected_outcome": "success",
     "timeout_s": 300,
     "max_turns": 3
 }

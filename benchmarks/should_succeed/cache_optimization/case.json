@@ -1,0 +1,12 @@
+{
+  "case_id": "cache_optimization",
+  "name": "Cache System Optimization (Multi-Metric)",
+  "description": "Optimize a caching system to simultaneously achieve high hit rate, low memory usage, fast access time, and correct eviction behavior",
+  "repo_path": "repo",
+  "goal": "Fix and optimize the cache system to satisfy ALL constraints: (1) hit_rate >= 0.80, (2) peak_memory_mb <= 128, (3) avg_access_time_ms <= 5, (4) eviction_correct == true. Fix bugs in cache.py and optimize main.py. Run with 'python main.py' and ensure it writes artifacts/metrics.json with all four metrics.",
+  "metrics": "hit_rate >= 0.80, peak_memory_mb <= 128, avg_access_time_ms <= 5, eviction_correct == true",
+  "expected_outcome": "success",
+  "timeout_s": 600,
+  "max_turns": 10
+}
+

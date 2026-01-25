@@ -110,6 +110,9 @@ def run_benchmark(case_path: Path, verbose: bool = False, skip_existing: bool = 
             for line in output.splitlines():
                 if "Run finished with outcome:" in line:
                     decision = line.split(":")[-1].strip()
+        if decision == "ABORT":
+            decision = "UNKNOWN"
+        
         
         return {
             "case_id": case.get("case_id"),
@@ -129,41 +132,84 @@ def run_benchmark(case_path: Path, verbose: bool = False, skip_existing: bool = 
             "error": str(e)
         }
 
+def get_benchmark_name(case_id: str, bench_root: Path) -> str:
+    """Get benchmark name from case.json file."""
+    for case_file in bench_root.glob(f"**/{case_id}/case.json"):
+        try:
+            with open(case_file) as f:
+                case = json.load(f)
+                return case.get("name", case_id)
+        except:
+            pass
+    return case_id
+
 def update_readme(report: dict, readme_path: Path = Path("README.md")):
     if not readme_path.exists():
         return
 
-    # Dynamic Table Generation
-    metric_labels = {
-        "success_rate": "**Success Rate (BSR)**",
-        "completion_rate": "**Completion Rate**",
-        "healing_index": "**Env Healing Index (EHI)**",
-        "fidelity_score": "**Artifact Fidelity (AFS)**",
-        "avg_turns": "**Avg Turns**",
-        "avg_time": "**Avg Time (sec)**",
-        "total_runs": "**Total Tests Run**"
-    }
-
-    table = [
+    bench_root = Path("benchmarks")
+    
+    # Summary metrics
+    summary_table = [
         "| Metric | Value |",
         "| :--- | :--- |"
     ]
 
-    for key, label in metric_labels.items():
-        if key in report:
-            val = report[key]
-            # Format percentages vs raw counts
-            if "rate" in key or "index" in key or "score" in key:
-                display_val = f"{val:.1f}%"
-            elif "time" in key or "turns" in key:
-                 display_val = f"{val:.1f}"
-            else:
-                 display_val = str(val)
-            
-            table.append(f"| {label} | {display_val} |")
+    if "success_rate" in report:
+        val = report["success_rate"]
+        display_val = f"{val:.1f}%"
+        summary_table.append(f"| **Success Rate (BSR)** | {display_val} |")
+    
+    if "total_runs" in report:
+        summary_table.append(f"| **Total Benchmarks** | {report['total_runs']} |")
 
-    table.append(f"\n*Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*")
-    markdown_results = "\n".join(table)
+    summary_table.append(f"\n*Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*")
+    
+    # Leaderboard table
+    if "raw_results" in report:
+        leaderboard_table = [
+            "\n## Benchmark Results",
+            "",
+            "| Benchmark | Status | Outcome |",
+            "| :--- | :---: | :--- |"
+        ]
+        
+        # Sort results: correct first, then by name
+        results = sorted(
+            report["raw_results"],
+            key=lambda x: (not x.get("is_correct", False), get_benchmark_name(x.get("case_id", ""), bench_root).lower())
+        )
+        
+        for result in results:
+            case_id = result.get("case_id", "unknown")
+            decision = result.get("decision", "UNKNOWN")
+            is_correct = result.get("is_correct", False)
+            
+            benchmark_name = get_benchmark_name(case_id, bench_root)
+            
+            # Status emoji
+            if decision == "SUCCESS":
+                status_emoji = "✅"
+            elif decision == "PARTIAL_SUCCESS":
+                status_emoji = "⚠️"
+            elif decision == "FAIL":
+                status_emoji = "❌"
+            else:
+                status_emoji = "❓"
+            
+            # Outcome text
+            if is_correct:
+                outcome = "Correct"
+            else:
+                outcome = "Incorrect"
+            
+            leaderboard_table.append(f"| {benchmark_name} | {status_emoji} {decision} | {outcome} |")
+        
+        leaderboard_markdown = "\n".join(leaderboard_table)
+    else:
+        leaderboard_markdown = ""
+    
+    markdown_results = "\n".join(summary_table) + "\n" + leaderboard_markdown
 
     with open(readme_path, "r") as f:
         content = f.read()
@@ -220,11 +266,6 @@ def main():
     print("📊 BENCHMARKING COMPLETE")
     if "success_rate" in report:
         print(f"Success Rate: {report['success_rate']:.1f}%")
-    if "completion_rate" in report:
-        print(f"Completion Rate: {report['completion_rate']:.1f}%")
-    if "healing_index" in report:
-        print(f"Env Healing Index: {report['healing_index']:.1f}%")
-    
     print(f"Report saved to: {args.output}")
     print("="*40)
 

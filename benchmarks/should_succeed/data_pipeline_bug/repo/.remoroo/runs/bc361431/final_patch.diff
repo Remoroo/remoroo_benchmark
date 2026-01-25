@@ -1,0 +1,264 @@
+diff --git a/aggregator.py b/aggregator.py
+index 89a820e..7a32b85 100644
+--- a/aggregator.py
++++ b/aggregator.py
+@@ -8,20 +8,15 @@ class DataAggregator:
+     
+     def aggregate_by_month(self, data: List[Dict]) -> List[Dict]:
+         """Aggregate data by month.
+-        
+-        BUG: This function has a subtle bug in how it calculates totals.
+-        It's summing amounts but not accounting for quantity correctly.
+-        The total should be amount * quantity for each record, then sum by month.
++        Correctly computes total as sum of amount * quantity for each record per month.
+         """
+         monthly_data = defaultdict(lambda: {'total': 0.0, 'count': 0})
+         
+         for record in data:
+             date = record['date']
+             month_key = f"{date.year}-{date.month:02d}"
+-            
+-            # BUG: Only summing amount, not amount * quantity
+-            # Should be: record['amount'] * record['quantity']
+-            monthly_data[month_key]['total'] += record['amount']
++            # Correct: sum amount * quantity
++            monthly_data[month_key]['total'] += record['amount'] * record['quantity']
+             monthly_data[month_key]['count'] += 1
+         
+         # Convert to list format
+@@ -34,4 +29,3 @@ class DataAggregator:
+             })
+         
+         return result
+-
+diff --git a/main.py b/main.py
+index 9a15109..5067675 100644
+--- a/main.py
++++ b/main.py
+@@ -1,45 +1,90 @@
+ """Main entry point for data pipeline."""
+ 
+ import json
++import os
++import pathlib
++import time
+ from reader import DataReader
+ from transformer import DataTransformer
+ from aggregator import DataAggregator
+ 
++def emit_metrics_artifacts(metrics_dict, phase):
++    # Use REMOROO_ARTIFACTS_DIR for all artifact paths
++    artifacts_dir = pathlib.Path(os.environ["REMOROO_ARTIFACTS_DIR"])
++    artifacts_dir.mkdir(exist_ok=True)
++    targets = []
++    if phase == "baseline":
++        targets.append(artifacts_dir / "baseline_metrics.json")
++    else:
++        targets.append(artifacts_dir / "current_metrics.json")
++    targets.append(artifacts_dir / "metrics.json")
++    for target_file in targets:
++        print(f"DEBUG: Checking {target_file}, exists={target_file.exists()}")
++        data = {}
++        if target_file.exists():
++            try:
++                with open(target_file, "r") as f:
++                    data = json.load(f)
++                    print(f"DEBUG: Read merged keys: {list(data.get('metrics', {}).keys())}")
++            except Exception as e:
++                print(f"DEBUG: Failed to read {target_file}: {e}")
++                data = {}
++        # Initialize A-pattern if needed
++        if "metrics" not in data:
++            data["metrics"] = {}
++            data["version"] = 1
++            data["phase"] = phase
++            data["created_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
++        # Update metrics
++        for k, v in metrics_dict.items():
++            data["metrics"][k] = v
++        # Also update metrics_with_units (required by A-pattern)
++        if "metrics_with_units" not in data:
++            data["metrics_with_units"] = {}
++        for k, v in metrics_dict.items():
++            # For this repo, unit is "" (empty string)
++            data["metrics_with_units"][k] = {"value": v, "unit": ""}
++        data["source"] = "main.py:emit_metrics_artifacts"
++        # For metrics.json, also update baseline_metrics if in baseline phase
++        if phase == "baseline" and target_file.name == "metrics.json":
++            if "baseline_metrics" not in data:
++                data["baseline_metrics"] = {}
++            for k, v in metrics_dict.items():
++                data["baseline_metrics"][k] = v
++        print(f"DEBUG: Writing {target_file.name} keys: {list(data['metrics'].keys())}")
++        with open(target_file, "w") as f:
++            json.dump(data, f, indent=2)
++
+ def main():
+     """Run the data pipeline."""
+     print("Starting data pipeline...")
+-    
+     # Step 1: Read data
+     reader = DataReader("input.csv")
+     raw_data = reader.read()
+     print(f"Read {len(raw_data)} records")
+-    
+     # Step 2: Transform data
+     transformer = DataTransformer()
+     transformed_data = transformer.transform(raw_data)
+     print(f"Transformed {len(transformed_data)} records")
+-    
+     # Step 3: Aggregate by month
+     aggregator = DataAggregator()
+     aggregated = aggregator.aggregate_by_month(transformed_data)
+     print(f"Aggregated into {len(aggregated)} monthly totals")
+-    
+     # Step 4: Calculate total
+     total = sum(item['total'] for item in aggregated)
+     print(f"\nAggregated total: {total}")
+-    
+     # Step 5: Save results
+     output = {
+         "monthly_totals": aggregated,
+         "grand_total": total
+     }
+-    
+     with open("output.json", "w") as f:
+         json.dump(output, f, indent=2)
+-    
+     print(f"Results saved to output.json")
+     print(f"\naggregated_total: {total}")
++    # --- METRICS ARTIFACT EMISSION ---
++    phase = os.environ.get("REMOROO_METRICS_PHASE", "current")
++    emit_metrics_artifacts({"aggregated_total": total}, phase)
+ 
+ if __name__ == "__main__":
+     main()
+-
+diff --git a/output.json b/output.json
+new file mode 100644
+index 0000000..65f8c0e
+--- /dev/null
++++ b/output.json
+@@ -0,0 +1,15 @@
++{
++  "monthly_totals": [
++    {
++      "month": "2024-01",
++      "total": 5000.0,
++      "count": 2
++    },
++    {
++      "month": "2024-02",
++      "total": 7500.0,
++      "count": 3
++    }
++  ],
++  "grand_total": 12500.0
++}
+\ No newline at end of file
+diff --git a/remoroo_monitor.py b/remoroo_monitor.py
+new file mode 100644
+index 0000000..e593c4a
+--- /dev/null
++++ b/remoroo_monitor.py
+@@ -0,0 +1,100 @@
++"""
++Runtime monitoring helper for Remoroo instrumentation.
++This module is injected into the user's repository during experimentation.
++It provides a safe, atomic way to emit metrics without race conditions.
++"""
++import os
++import json
++import uuid
++import time
++import sys
++from typing import Any, Optional
++
++class MetricEmitter:
++    """
++    Handles atomic emission of metrics to partial artifact files.
++    This avoids lock contention and race conditions when multiple processes
++    try to write to a single metrics.json file.
++    """
++    
++    def __init__(self, artifact_dir: Optional[str] = None):
++        """
++        Initialize the emitter.
++        
++        Args:
++            artifact_dir: Optional explicit path. If None, looks for REMOROO_ARTIFACTS_DIR
++                         env var, or falls back to 'artifacts' in current directory.
++        """
++        self.artifact_dir = (
++            artifact_dir 
++            or os.environ.get("REMOROO_ARTIFACTS_DIR") 
++            or os.path.join(os.getcwd(), "artifacts")
++        )
++        # Ensure it exists (safe mkdir)
++        try:
++            os.makedirs(self.artifact_dir, exist_ok=True)
++        except Exception:
++            pass
++            
++        self.pid = os.getpid()
++        self.process_uuid = str(uuid.uuid4())[:8]
++
++    def emit(self, name: str, value: Any, unit: str = "", source: str = "custom_instrumentation") -> bool:
++        """
++        Emit a single metric to a unique partial artifact file.
++        
++        Args:
++            name: Metric name
++            value: Metric value
++            unit: Optional unit string
++            source: Source identifier
++            
++        Returns:
++            bool: True if write succeeded, False otherwise.
++        """
++        try:
++            timestamp = time.time()
++            # Unique filename for this emission to guarantee atomicity
++            # format: partial_{timestamp}_{uuid}_{name}.json
++            # We include name in filename to make debugging easier, but uuid ensures uniqueness
++            safe_name = "".join(c for c in name if c.isalnum() or c in "._-")[:50]
++            filename = f"partial_{timestamp:.6f}_{self.process_uuid}_{safe_name}.json"
++            filepath = os.path.join(self.artifact_dir, filename)
++            
++            payload = {
++                "metric_name": name,
++                "value": value,
++                "unit": unit,
++                "source": source,
++                "timestamp": timestamp,
++                "pid": self.pid,
++                "process_uuid": self.process_uuid,
++                "version": "1.0" # schema version for partial artifacts
++            }
++            
++            # Atomic write pattern: write to temp then rename (if on POSIX)
++            # For simplicity in this injected helper, we just write a unique file.
++            # Since the filename includes random UUID time, collision is effectively impossible.
++            with open(filepath, "w", encoding="utf-8") as f:
++                json.dump(payload, f)
++                
++            return True
++        except Exception as e:
++            # Last resort stderr logging if emission fails
++            sys.stderr.write(f"[Remoroo] Failed to emit metric '{name}': {e}\n")
++            return False
++
++# Global instance for easy import usage
++_global_emitter = None
++
++def emit(name: str, value: Any, unit: str = "", source: str = "custom_instrumentation"):
++    """
++    Global convenience function.
++    Usage:
++        import monitor
++        monitor.emit("accuracy", 0.95)
++    """
++    global _global_emitter
++    if _global_emitter is None:
++        _global_emitter = MetricEmitter()
++    return _global_emitter.emit(name, value, unit, source)

@@ -1,0 +1,246 @@
+diff --git a/main.py b/main.py
+index b0a357f..74699a7 100644
+--- a/main.py
++++ b/main.py
+@@ -1,6 +1,4 @@
+ from simapp.cli import main
+ 
+-
+ if __name__ == "__main__":
+     main()
+-
+diff --git a/remoroo_monitor.py b/remoroo_monitor.py
+new file mode 100644
+index 0000000..e593c4a
+--- /dev/null
++++ b/remoroo_monitor.py
+@@ -0,0 +1,100 @@
++"""
++Runtime monitoring helper for Remoroo instrumentation.
++This module is injected into the user's repository during experimentation.
++It provides a safe, atomic way to emit metrics without race conditions.
++"""
++import os
++import json
++import uuid
++import time
++import sys
++from typing import Any, Optional
++
++class MetricEmitter:
++    """
++    Handles atomic emission of metrics to partial artifact files.
++    This avoids lock contention and race conditions when multiple processes
++    try to write to a single metrics.json file.
++    """
++    
++    def __init__(self, artifact_dir: Optional[str] = None):
++        """
++        Initialize the emitter.
++        
++        Args:
++            artifact_dir: Optional explicit path. If None, looks for REMOROO_ARTIFACTS_DIR
++                         env var, or falls back to 'artifacts' in current directory.
++        """
++        self.artifact_dir = (
++            artifact_dir 
++            or os.environ.get("REMOROO_ARTIFACTS_DIR") 
++            or os.path.join(os.getcwd(), "artifacts")
++        )
++        # Ensure it exists (safe mkdir)
++        try:
++            os.makedirs(self.artifact_dir, exist_ok=True)
++        except Exception:
++            pass
++            
++        self.pid = os.getpid()
++        self.process_uuid = str(uuid.uuid4())[:8]
++
++    def emit(self, name: str, value: Any, unit: str = "", source: str = "custom_instrumentation") -> bool:
++        """
++        Emit a single metric to a unique partial artifact file.
++        
++        Args:
++            name: Metric name
++            value: Metric value
++            unit: Optional unit string
++            source: Source identifier
++            
++        Returns:
++            bool: True if write succeeded, False otherwise.
++        """
++        try:
++            timestamp = time.time()
++            # Unique filename for this emission to guarantee atomicity
++            # format: partial_{timestamp}_{uuid}_{name}.json
++            # We include name in filename to make debugging easier, but uuid ensures uniqueness
++            safe_name = "".join(c for c in name if c.isalnum() or c in "._-")[:50]
++            filename = f"partial_{timestamp:.6f}_{self.process_uuid}_{safe_name}.json"
++            filepath = os.path.join(self.artifact_dir, filename)
++            
++            payload = {
++                "metric_name": name,
++                "value": value,
++                "unit": unit,
++                "source": source,
++                "timestamp": timestamp,
++                "pid": self.pid,
++                "process_uuid": self.process_uuid,
++                "version": "1.0" # schema version for partial artifacts
++            }
++            
++            # Atomic write pattern: write to temp then rename (if on POSIX)
++            # For simplicity in this injected helper, we just write a unique file.
++            # Since the filename includes random UUID time, collision is effectively impossible.
++            with open(filepath, "w", encoding="utf-8") as f:
++                json.dump(payload, f)
++                
++            return True
++        except Exception as e:
++            # Last resort stderr logging if emission fails
++            sys.stderr.write(f"[Remoroo] Failed to emit metric '{name}': {e}\n")
++            return False
++
++# Global instance for easy import usage
++_global_emitter = None
++
++def emit(name: str, value: Any, unit: str = "", source: str = "custom_instrumentation"):
++    """
++    Global convenience function.
++    Usage:
++        import monitor
++        monitor.emit("accuracy", 0.95)
++    """
++    global _global_emitter
++    if _global_emitter is None:
++        _global_emitter = MetricEmitter()
++    return _global_emitter.emit(name, value, unit, source)
+diff --git a/simapp/cli.py b/simapp/cli.py
+index f79c9ac..e86b523 100644
+--- a/simapp/cli.py
++++ b/simapp/cli.py
+@@ -3,10 +3,13 @@ from __future__ import annotations
+ import argparse
+ import os
+ import sys
++import pathlib
++import json
++import time
++import traceback
+ 
+ from .train_eval import run_evaluate, run_train
+ 
+-
+ def _build_parser() -> argparse.ArgumentParser:
+     p = argparse.ArgumentParser(prog="simapp")
+     g = p.add_mutually_exclusive_group(required=True)
+@@ -16,6 +19,55 @@ def _build_parser() -> argparse.ArgumentParser:
+     p.add_argument("--workdir", type=str, default="workdir")
+     return p
+ 
++def _emit_metrics(metrics: dict, phase: str, source: str = "simapp/cli.py"):
++    import os
++    import pathlib
++    import json
++    import time
++    artifacts_dir = pathlib.Path(os.environ["REMOROO_ARTIFACTS_DIR"])
++    artifacts_dir.mkdir(exist_ok=True)
++    targets = []
++    if phase == "baseline":
++        targets.append(artifacts_dir / "baseline_metrics.json")
++    else:
++        targets.append(artifacts_dir / "current_metrics.json")
++    targets.append(artifacts_dir / "metrics.json")
++    for target_file in targets:
++        print(f"DEBUG: Checking {target_file}, exists={target_file.exists()}")
++        data = {}
++        if target_file.exists():
++            try:
++                with open(target_file, "r") as f:
++                    data = json.load(f)
++                    print(f"DEBUG: Read merged keys: {list(data.get('metrics', {}).keys())}")
++            except Exception as e:
++                print(f"DEBUG: Failed to read {target_file}: {e}")
++                raise
++        # Initialize A-pattern if needed
++        if "metrics" not in data:
++            data["metrics"] = {}
++            data["version"] = 1
++            data["phase"] = phase
++            data["created_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
++            data["source"] = source
++            data["metrics_with_units"] = {}
++        # Update metrics
++        for k, v in metrics.items():
++            data["metrics"][k] = v
++        # Add metrics_with_units
++        # Only for known metrics
++        units = {"runtime_s": "s", "validation_accuracy": ""}
++        for k, v in metrics.items():
++            data["metrics_with_units"][k] = {"value": v, "unit": units.get(k, "")}
++        # Also update baseline_metrics key if in baseline phase (for metrics.json compatibility)
++        if phase == "baseline" and target_file.name == "metrics.json":
++            if "baseline_metrics" not in data:
++                data["baseline_metrics"] = {}
++            for k, v in metrics.items():
++                data["baseline_metrics"][k] = v
++        print(f"DEBUG: Writing {target_file.name} keys: {list(data['metrics'].keys())}")
++        with open(target_file, "w") as f:
++            json.dump(data, f, indent=2)
+ 
+ def main(argv: list[str] | None = None) -> None:
+     argv = list(sys.argv[1:] if argv is None else argv)
+@@ -24,15 +76,35 @@ def main(argv: list[str] | None = None) -> None:
+     workdir = args.workdir
+     os.makedirs(workdir, exist_ok=True)
+ 
+-    if args.train:
+-        run_train(workdir=workdir, seed=int(args.seed))
+-        sys.stdout.write("ok\n")
+-        return
+-
+-    if args.evaluate:
+-        run_evaluate(workdir=workdir, seed=int(args.seed))
+-        sys.stdout.write("ok\n")
+-        return
++    phase = os.environ.get("REMOROO_METRICS_PHASE", "current")
++    metrics = {}
++    try:
++        if args.train:
++            import time as _time
++            t0 = _time.time()
++            run_train(workdir=workdir, seed=int(args.seed))
++            t1 = _time.time()
++            runtime_s = t1 - t0
++            metrics["runtime_s"] = runtime_s
++            sys.stdout.write("ok\n")
++            _emit_metrics(metrics, phase)
++            return
+ 
+-    raise SystemExit(2)
++        if args.evaluate:
++            import time as _time
++            t0 = _time.time()
++            result = run_evaluate(workdir=workdir, seed=int(args.seed))
++            t1 = _time.time()
++            runtime_s = t1 - t0
++            validation_accuracy = result.accuracy()
++            metrics["runtime_s"] = runtime_s
++            metrics["validation_accuracy"] = validation_accuracy
++            sys.stdout.write("ok\n")
++            _emit_metrics(metrics, phase)
++            return
+ 
++        raise SystemExit(2)
++    except Exception as e:
++        print("DEBUG: Exception in main:", e)
++        traceback.print_exc()
++        raise
+diff --git a/workdir/model.json b/workdir/model.json
+new file mode 100644
+index 0000000..e7c5ce3
+--- /dev/null
++++ b/workdir/model.json
+@@ -0,0 +1 @@
++{"w": [[0.08869549632072449, -0.1636856347322464, 0.08755514025688171], [-0.03895997628569603, -0.02786221168935299, 0.06303153932094574], [0.0715503916144371, -0.15800806879997253, 0.07908347249031067], [-0.013341548852622509, 0.05312657356262207, -0.04174840450286865], [-0.050208404660224915, 0.004633414559066296, 0.04558693245053291], [0.03817669302225113, -0.044761791825294495, -0.0011571244103834033], [0.03259133920073509, 0.09390787780284882, -0.12251581996679306], [-0.09717553853988647, -0.06392472237348557, 0.17904995381832123], [0.0852942243218422, -0.010506290942430496, -0.09378717839717865], [0.029599688947200775, -0.14534132182598114, 0.09919966012239456], [-0.01768551766872406, -0.004485294222831726, 0.008968742564320564], [0.1279098242521286, -0.03168169781565666, -0.11812379956245422], [-0.015411971136927605, 0.1040087416768074, -0.06837216019630432], [-0.16250932216644287, 0.07642786204814911, 0.08939233422279358], [0.016713019460439682, -0.007619061507284641, -0.028011474758386612], [-0.11845836043357849, 0.13242323696613312, -0.005694617051631212], [0.11855366826057434, 0.004079473204910755, -0.10607687383890152], [0.04620425030589104, 0.07214674353599548, -0.11244218051433563], [0.0726846382021904, -0.0627281591296196, -0.02871113270521164], [-0.007391452323645353, -0.028979677706956863, 0.0523589625954628], [0.08769051730632782, -0.18113532662391663, 0.06971393525600433], [0.032183144241571426, 0.031792886555194855, -0.05971652269363403], [-0.1148829236626625, 0.1299988180398941, -0.04053569957613945], [0.08768580108880997, -0.08885674178600311, 0.0015208541881293058], [-0.052911460399627686, -0.06859808415174484, 0.15198974311351776]], "b": [0.00842866487801075, -0.014330070465803146, 0.005901407916098833]}
+\ No newline at end of file

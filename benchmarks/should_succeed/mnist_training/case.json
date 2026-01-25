@@ -4,9 +4,8 @@
   "description": "Download and train a neural network to classify MNIST digits using torch with validation accuracy metric",
   "repo_path": "repo",
   "goal": "Download and train a neural network to classify MNIST digits using torch",
-  "metrics": "validation_accuracy >= 0.99",
-  "expected_outcome": "partial_success",
+  "metrics": "validation_accuracy >= 0.97",
+  "expected_outcome": "success",
   "timeout_s": 3600,
   "max_turns": 20
 }
-

@@ -1,0 +1,321 @@
+diff --git a/remoroo_monitor.py b/remoroo_monitor.py
+new file mode 100644
+index 0000000..e593c4a
+--- /dev/null
++++ b/remoroo_monitor.py
+@@ -0,0 +1,100 @@
++"""
++Runtime monitoring helper for Remoroo instrumentation.
++This module is injected into the user's repository during experimentation.
++It provides a safe, atomic way to emit metrics without race conditions.
++"""
++import os
++import json
++import uuid
++import time
++import sys
++from typing import Any, Optional
++
++class MetricEmitter:
++    """
++    Handles atomic emission of metrics to partial artifact files.
++    This avoids lock contention and race conditions when multiple processes
++    try to write to a single metrics.json file.
++    """
++    
++    def __init__(self, artifact_dir: Optional[str] = None):
++        """
++        Initialize the emitter.
++        
++        Args:
++            artifact_dir: Optional explicit path. If None, looks for REMOROO_ARTIFACTS_DIR
++                         env var, or falls back to 'artifacts' in current directory.
++        """
++        self.artifact_dir = (
++            artifact_dir 
++            or os.environ.get("REMOROO_ARTIFACTS_DIR") 
++            or os.path.join(os.getcwd(), "artifacts")
++        )
++        # Ensure it exists (safe mkdir)
++        try:
++            os.makedirs(self.artifact_dir, exist_ok=True)
++        except Exception:
++            pass
++            
++        self.pid = os.getpid()
++        self.process_uuid = str(uuid.uuid4())[:8]
++
++    def emit(self, name: str, value: Any, unit: str = "", source: str = "custom_instrumentation") -> bool:
++        """
++        Emit a single metric to a unique partial artifact file.
++        
++        Args:
++            name: Metric name
++            value: Metric value
++            unit: Optional unit string
++            source: Source identifier
++            
++        Returns:
++            bool: True if write succeeded, False otherwise.
++        """
++        try:
++            timestamp = time.time()
++            # Unique filename for this emission to guarantee atomicity
++            # format: partial_{timestamp}_{uuid}_{name}.json
++            # We include name in filename to make debugging easier, but uuid ensures uniqueness
++            safe_name = "".join(c for c in name if c.isalnum() or c in "._-")[:50]
++            filename = f"partial_{timestamp:.6f}_{self.process_uuid}_{safe_name}.json"
++            filepath = os.path.join(self.artifact_dir, filename)
++            
++            payload = {
++                "metric_name": name,
++                "value": value,
++                "unit": unit,
++                "source": source,
++                "timestamp": timestamp,
++                "pid": self.pid,
++                "process_uuid": self.process_uuid,
++                "version": "1.0" # schema version for partial artifacts
++            }
++            
++            # Atomic write pattern: write to temp then rename (if on POSIX)
++            # For simplicity in this injected helper, we just write a unique file.
++            # Since the filename includes random UUID time, collision is effectively impossible.
++            with open(filepath, "w", encoding="utf-8") as f:
++                json.dump(payload, f)
++                
++            return True
++        except Exception as e:
++            # Last resort stderr logging if emission fails
++            sys.stderr.write(f"[Remoroo] Failed to emit metric '{name}': {e}\n")
++            return False
++
++# Global instance for easy import usage
++_global_emitter = None
++
++def emit(name: str, value: Any, unit: str = "", source: str = "custom_instrumentation"):
++    """
++    Global convenience function.
++    Usage:
++        import monitor
++        monitor.emit("accuracy", 0.95)
++    """
++    global _global_emitter
++    if _global_emitter is None:
++        _global_emitter = MetricEmitter()
++    return _global_emitter.emit(name, value, unit, source)
+diff --git a/train.py b/train.py
+index 0a16dcc..1a10834 100644
+--- a/train.py
++++ b/train.py
+@@ -3,6 +3,7 @@ from __future__ import annotations
+ import json
+ import os
+ import time
++import pathlib
+ from typing import Dict
+ 
+ import numpy as np
+@@ -10,10 +11,78 @@ import numpy as np
+ import config
+ from data import make_synthetic, train_test_split
+ from metrics import compute_all
+-from model import init_model, step_sgd
+-
++from model import init_model
++
++def emit_metrics_artifacts(metrics: Dict[str, float], phase: str) -> None:
++    # Use the env var for artifact dir
++    artifacts_dir = pathlib.Path(os.environ["REMOROO_ARTIFACTS_DIR"])
++    artifacts_dir.mkdir(exist_ok=True)
++    # Compose metrics_with_units (required by A-pattern)
++    metrics_with_units = {}
++    for k, v in metrics.items():
++        if k == "accuracy":
++            metrics_with_units[k] = {"value": v, "unit": ""}
++        elif k == "fairness_gap":
++            metrics_with_units[k] = {"value": v, "unit": ""}
++        elif k == "training_time":
++            metrics_with_units[k] = {"value": v, "unit": ""}
++        else:
++            metrics_with_units[k] = {"value": v, "unit": ""}
++    # Compose A-pattern object
++    a_obj = {
++        "version": 1,
++        "phase": phase,
++        "metrics": {k: metrics[k] for k in metrics if k in ["accuracy", "fairness_gap", "training_time"]},
++        "metrics_with_units": {k: metrics_with_units[k] for k in metrics_with_units if k in ["accuracy", "fairness_gap", "training_time"]},
++        "source": "train.py",
++        "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
++    }
++    # Determine targets
++    targets = []
++    if phase == "baseline":
++        targets.append(artifacts_dir / "baseline_metrics.json")
++    else:
++        targets.append(artifacts_dir / "current_metrics.json")
++    targets.append(artifacts_dir / "metrics.json")
++    for target_file in targets:
++        data = {}
++        if target_file.exists():
++            try:
++                with open(target_file, "r") as f:
++                    data = json.load(f)
++            except Exception:
++                data = {}
++        # Initialize A-pattern if needed
++        if "metrics" not in data:
++            data["metrics"] = {}
++            data["version"] = 1
++            data["phase"] = phase
++            data["created_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
++            data["metrics_with_units"] = {}
++            data["source"] = "train.py"
++        # Update metrics (only the required keys)
++        for k in ["accuracy", "fairness_gap", "training_time"]:
++            if k in metrics:
++                data["metrics"][k] = metrics[k]
++                data["metrics_with_units"][k] = metrics_with_units[k]
++        # Also update baseline_metrics key if in baseline phase (for metrics.json compatibility)
++        if phase == "baseline" and target_file.name == "metrics.json":
++            if "baseline_metrics" not in data:
++                data["baseline_metrics"] = {}
++            for k in ["accuracy", "fairness_gap", "training_time"]:
++                if k in metrics:
++                    data["baseline_metrics"][k] = metrics[k]
++        with open(target_file, "w") as f:
++            json.dump(data, f, indent=2)
++
++def sigmoid(z):
++    # Numerically stable sigmoid
++    z = np.clip(z, -30, 30)
++    return 1.0 / (1.0 + np.exp(-z))
+ 
+ def train_one_run() -> Dict[str, float]:
++    # Deterministic seed for all numpy operations
++    np.random.seed(config.SEED)
+     ds = make_synthetic(seed=config.SEED, n_samples=config.N_SAMPLES, n_features=config.N_FEATURES)
+     train, test = train_test_split(ds, train_fraction=config.TRAIN_FRACTION, seed=config.SEED)
+ 
+@@ -22,45 +91,68 @@ def train_one_run() -> Dict[str, float]:
+     sigma = train.X.std(axis=0) + 1e-8
+     X_train = (train.X - mu) / sigma
+     X_test = (test.X - mu) / sigma
+-
+-    model = init_model(n_features=X_train.shape[1], seed=config.SEED)
++    y_train = train.y.astype(np.float64)
++    y_test = test.y.astype(np.float64)
++    g_train = train.g.astype(np.int64)
++    g_test = test.g.astype(np.int64)
++
++    n, d = X_train.shape
++    # Vectorized logistic regression (no python loops)
++    w = np.zeros(d, dtype=np.float64)
++    b = 0.0
++    lr = 0.25  # increased learning rate for faster and more decisive convergence
++    l2_reg = 5e-4  # slightly less regularization for better fit
++    epochs = 100  # slightly more epochs for better convergence
++    batch_size = 128  # mini-batch SGD
+ 
+     t0 = time.time()
+-
+-    # Intentionally slow / unstable training loop (benchmark starts "hard")
+-    n = X_train.shape[0]
+-    for epoch in range(config.EPOCHS):
+-        # crude "fairness" term: not actually correct; kept as a trap
+-        fairness_grad = 0.0
+-        if config.FAIRNESS_WEIGHT != 0.0:
+-            fairness_grad = config.FAIRNESS_WEIGHT * 0.01
+-
+-        for i in range(n):
+-            step_sgd(
+-                model=model,
+-                x=X_train[i],
+-                y=int(train.y[i]),
+-                lr=config.LEARNING_RATE,
+-                l2_reg=config.L2_REG,
+-                fairness_grad=fairness_grad,
+-            )
+-
+-        # Early stop heuristic (bad: uses test labels indirectly by peeking at test predictions distribution)
+-        if epoch % 50 == 0:
+-            probs = model.predict_proba(X_test)
+-            if float(np.mean(probs)) < 0.05 or float(np.mean(probs)) > 0.95:
+-                # Degenerate; keep going anyway (wastes time)
+-                pass
+-
++    for epoch in range(epochs):
++        # Shuffle each epoch for SGD
++        idx = np.arange(n)
++        np.random.shuffle(idx)
++        X_shuf = X_train[idx]
++        y_shuf = y_train[idx]
++        g_shuf = g_train[idx]
++        for start in range(0, n, batch_size):
++            end = min(start + batch_size, n)
++            Xb = X_shuf[start:end]
++            yb = y_shuf[start:end]
++            gb = g_shuf[start:end]
++            # Forward
++            z = Xb @ w + b
++            p = sigmoid(z)
++            # Standard cross-entropy gradient
++            grad_w = (p - yb) @ Xb / Xb.shape[0] + l2_reg * w
++            grad_b = np.mean(p - yb)
++            # Fairness penalty: encourage equal accuracy across groups (0/1)
++            # Compute group-wise errors
++            mask0 = gb == 0
++            mask1 = gb == 1
++            acc0 = np.mean((p[mask0] >= 0.5) == yb[mask0]) if np.any(mask0) else 0.0
++            acc1 = np.mean((p[mask1] >= 0.5) == yb[mask1]) if np.any(mask1) else 0.0
++            fairness_gap = acc0 - acc1
++            # Add fairness penalty to grad_w (differentiable proxy: difference in mean prediction per group)
++            fairness_weight = 0.15  # slightly reduced fairness penalty for better accuracy/fairness tradeoff
++            if np.any(mask0) and np.any(mask1):
++                mean_pred0 = np.mean(p[mask0])
++                mean_pred1 = np.mean(p[mask1])
++                grad_fair = fairness_weight * (mean_pred0 - mean_pred1) * (
++                    np.mean(Xb[mask0], axis=0) - np.mean(Xb[mask1], axis=0)
++                )
++                grad_w += grad_fair
++            # Update
++            w -= lr * grad_w
++            b -= lr * grad_b
+     training_time = time.time() - t0
+ 
+-    y_prob = model.predict_proba(X_test)
++    # Evaluate
++    z_test = X_test @ w + b
++    y_prob = sigmoid(z_test)
+     y_pred = (y_prob >= 0.5).astype(np.int64)
+-    metrics = compute_all(y_true=test.y, y_prob=y_prob, y_pred=y_pred, g=test.g)
++    metrics = compute_all(y_true=y_test, y_prob=y_prob, y_pred=y_pred, g=g_test)
+     metrics["training_time"] = float(training_time)
+     return metrics
+ 
+-
+ def main() -> None:
+     metrics: Dict[str, float]
+     try:
+@@ -68,17 +160,15 @@ def main() -> None:
+     except Exception as e:
+         metrics = {"error": str(e)}  # type: ignore[assignment]
+ 
+-    os.makedirs("artifacts", exist_ok=True)
+-    with open(os.path.join("artifacts", "metrics.json"), "w") as f:
+-        json.dump(metrics, f, indent=2)
++    # Determine phase from env var
++    phase = os.environ.get("REMOROO_METRICS_PHASE", "current")
++    # Write all required artifacts
++    emit_metrics_artifacts(metrics, phase)
+ 
+     # Also print a minimal summary for stdout_regex extraction
+     for k in ["accuracy", "loss", "fairness_gap", "training_time"]:
+         if k in metrics:
+             print(f"{k}: {metrics[k]}")
+ 
+-
+ if __name__ == "__main__":
+     main()
+-
+-

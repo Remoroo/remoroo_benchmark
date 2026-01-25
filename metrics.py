@@ -50,7 +50,6 @@ class BenchmarkMetrics:
         
         raw_report = {
             "success_rate": self.calculate_success_rate(),
-            "completion_rate": self.calculate_completion_rate(),
             "healing_index": self.calculate_healing_index(),
             "fidelity_score": self.calculate_fidelity_score(),
             "avg_turns": efficiency['avg_turns'],

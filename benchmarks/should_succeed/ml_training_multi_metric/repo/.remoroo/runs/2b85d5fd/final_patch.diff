@@ -1,0 +1,403 @@
+diff --git a/remoroo_monitor.py b/remoroo_monitor.py
+new file mode 100644
+index 0000000..e593c4a
+--- /dev/null
++++ b/remoroo_monitor.py
+@@ -0,0 +1,100 @@
++"""
++Runtime monitoring helper for Remoroo instrumentation.
++This module is injected into the user's repository during experimentation.
++It provides a safe, atomic way to emit metrics without race conditions.
++"""
++import os
++import json
++import uuid
++import time
++import sys
++from typing import Any, Optional
++
++class MetricEmitter:
++    """
++    Handles atomic emission of metrics to partial artifact files.
++    This avoids lock contention and race conditions when multiple processes
++    try to write to a single metrics.json file.
++    """
++    
++    def __init__(self, artifact_dir: Optional[str] = None):
++        """
++        Initialize the emitter.
++        
++        Args:
++            artifact_dir: Optional explicit path. If None, looks for REMOROO_ARTIFACTS_DIR
++                         env var, or falls back to 'artifacts' in current directory.
++        """
++        self.artifact_dir = (
++            artifact_dir 
++            or os.environ.get("REMOROO_ARTIFACTS_DIR") 
++            or os.path.join(os.getcwd(), "artifacts")
++        )
++        # Ensure it exists (safe mkdir)
++        try:
++            os.makedirs(self.artifact_dir, exist_ok=True)
++        except Exception:
++            pass
++            
++        self.pid = os.getpid()
++        self.process_uuid = str(uuid.uuid4())[:8]
++
++    def emit(self, name: str, value: Any, unit: str = "", source: str = "custom_instrumentation") -> bool:
++        """
++        Emit a single metric to a unique partial artifact file.
++        
++        Args:
++            name: Metric name
++            value: Metric value
++            unit: Optional unit string
++            source: Source identifier
++            
++        Returns:
++            bool: True if write succeeded, False otherwise.
++        """
++        try:
++            timestamp = time.time()
++            # Unique filename for this emission to guarantee atomicity
++            # format: partial_{timestamp}_{uuid}_{name}.json
++            # We include name in filename to make debugging easier, but uuid ensures uniqueness
++            safe_name = "".join(c for c in name if c.isalnum() or c in "._-")[:50]
++            filename = f"partial_{timestamp:.6f}_{self.process_uuid}_{safe_name}.json"
++            filepath = os.path.join(self.artifact_dir, filename)
++            
++            payload = {
++                "metric_name": name,
++                "value": value,
++                "unit": unit,
++                "source": source,
++                "timestamp": timestamp,
++                "pid": self.pid,
++                "process_uuid": self.process_uuid,
++                "version": "1.0" # schema version for partial artifacts
++            }
++            
++            # Atomic write pattern: write to temp then rename (if on POSIX)
++            # For simplicity in this injected helper, we just write a unique file.
++            # Since the filename includes random UUID time, collision is effectively impossible.
++            with open(filepath, "w", encoding="utf-8") as f:
++                json.dump(payload, f)
++                
++            return True
++        except Exception as e:
++            # Last resort stderr logging if emission fails
++            sys.stderr.write(f"[Remoroo] Failed to emit metric '{name}': {e}\n")
++            return False
++
++# Global instance for easy import usage
++_global_emitter = None
++
++def emit(name: str, value: Any, unit: str = "", source: str = "custom_instrumentation"):
++    """
++    Global convenience function.
++    Usage:
++        import monitor
++        monitor.emit("accuracy", 0.95)
++    """
++    global _global_emitter
++    if _global_emitter is None:
++        _global_emitter = MetricEmitter()
++    return _global_emitter.emit(name, value, unit, source)
+diff --git a/train.py b/train.py
+index 7c02fdb..1910151 100644
+--- a/train.py
++++ b/train.py
+@@ -1,10 +1,5 @@
+ """Neural network training with multiple metric requirements.
+ 
+-BUGS TO FIX:
+-1. Model architecture is too simple - won't reach 85% accuracy
+-2. Learning rate is way too high - causes divergence (high loss)
+-3. Training loop is inefficient - takes too long
+-
+ REQUIREMENTS (all must be met):
+ - accuracy >= 0.85 on test set
+ - loss <= 0.5 at end of training
+@@ -17,11 +12,76 @@ import numpy as np
+ import time
+ import json
+ import os
++import pathlib
+ from typing import Tuple, Dict, Any
+ 
+ # Seed for reproducibility
+ np.random.seed(42)
+ 
++def emit_metrics_artifacts(metrics: dict):
++    import time
++    import os
++    import pathlib
++    import json
++    phase = os.environ.get("REMOROO_METRICS_PHASE", "current")
++    artifacts_dir = os.environ.get("REMOROO_ARTIFACTS_DIR", "artifacts")
++    artifacts_dir = pathlib.Path(artifacts_dir)
++    artifacts_dir.mkdir(exist_ok=True)
++    # Compose metrics_with_units
++    metrics_with_units = {
++        "accuracy": {"value": metrics["accuracy"], "unit": "percent"},
++        "loss": {"value": metrics["loss"], "unit": ""},
++        "training_time": {"value": metrics["training_time"], "unit": "seconds"}
++    }
++    # Compose A-pattern object
++    a_obj = {
++        "version": 1,
++        "phase": phase,
++        "metrics": dict(metrics),
++        "metrics_with_units": metrics_with_units,
++        "source": "train.py",
++        "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
++    }
++    # Determine targets
++    targets = []
++    if phase == "baseline":
++        targets.append(artifacts_dir / "baseline_metrics.json")
++    else:
++        targets.append(artifacts_dir / "current_metrics.json")
++    targets.append(artifacts_dir / "metrics.json")
++    for target_file in targets:
++        # print(f"DEBUG: Checking {target_file}, exists={target_file.exists()}")
++        data = {}
++        if target_file.exists():
++            try:
++                with open(target_file, "r") as f:
++                    data = json.load(f)
++                    # print(f"DEBUG: Read merged keys: {list(data.get('metrics', {}).keys())}")
++            except Exception as e:
++                # print(f"DEBUG: Failed to read {target_file}: {e}")
++                data = {}
++        # Initialize A-pattern if needed
++        if "metrics" not in data:
++            data["version"] = 1
++            data["phase"] = phase
++            data["metrics"] = {}
++            data["metrics_with_units"] = {}
++            data["source"] = "train.py"
++            data["created_at"] = a_obj["created_at"]
++        # Update metrics
++        for k, v in metrics.items():
++            data["metrics"][k] = v
++        for k, v in metrics_with_units.items():
++            data["metrics_with_units"][k] = v
++        # For metrics.json, also update baseline_metrics if in baseline phase
++        if phase == "baseline" and target_file.name == "metrics.json":
++            if "baseline_metrics" not in data:
++                data["baseline_metrics"] = {}
++            for k, v in metrics.items():
++                data["baseline_metrics"][k] = v
++        # print(f"DEBUG: Writing {target_file.name} keys: {list(data['metrics'].keys())}")
++        with open(target_file, "w") as f:
++            json.dump(data, f, indent=2)
+ 
+ def generate_data(n_samples: int = 1000) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+     """Generate synthetic classification data.
+@@ -37,144 +97,127 @@ def generate_data(n_samples: int = 1000) -> Tuple[np.ndarray, np.ndarray, np.nda
+     split = int(0.8 * n_samples)
+     return X[:split], y[:split], X[split:], y[split:]
+ 
+-
+ def sigmoid(x: np.ndarray) -> np.ndarray:
+     """Sigmoid activation."""
+     return 1 / (1 + np.exp(-np.clip(x, -500, 500)))
+ 
+-
+ def relu(x: np.ndarray) -> np.ndarray:
+     """ReLU activation."""
+     return np.maximum(0, x)
+ 
+-
+ def relu_derivative(x: np.ndarray) -> np.ndarray:
+     """ReLU derivative."""
+     return (x > 0).astype(float)
+ 
+-
+ class NeuralNetwork:
+-    """Simple neural network for binary classification.
+-    
+-    BUG: Architecture is too shallow for XOR-like problem.
+-    The network needs at least one hidden layer to learn non-linear boundaries.
+-    """
+-    
+-    def __init__(self, input_size: int = 2, hidden_size: int = 4, output_size: int = 1):
+-        # BUG: Only using input -> output (no hidden layer effectively used)
+-        # This linear model can't learn XOR pattern
+-        self.W1 = np.random.randn(input_size, hidden_size) * 0.01  # BUG: Weights too small
++    """Simple neural network for binary classification (with one hidden layer)."""
++    def __init__(self, input_size: int = 2, hidden_size: int = 16, output_size: int = 1):
++        # He initialization for ReLU
++        self.W1 = np.random.randn(input_size, hidden_size) * np.sqrt(2. / input_size)
+         self.b1 = np.zeros((1, hidden_size))
+-        self.W2 = np.random.randn(hidden_size, output_size) * 0.01
++        self.W2 = np.random.randn(hidden_size, output_size) * np.sqrt(2. / hidden_size)
+         self.b2 = np.zeros((1, output_size))
+-    
+-    def forward(self, X: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+-        """Forward pass."""
+-        # BUG: Using sigmoid for hidden layer (relu would be better)
++    def forward(self, X: np.ndarray) -> np.ndarray:
+         self.z1 = X @ self.W1 + self.b1
+-        self.a1 = sigmoid(self.z1)  # BUG: Should use ReLU
++        self.a1 = relu(self.z1)
+         self.z2 = self.a1 @ self.W2 + self.b2
+         self.a2 = sigmoid(self.z2)
+         return self.a2
+-    
+     def backward(self, X: np.ndarray, y: np.ndarray, output: np.ndarray, lr: float) -> float:
+-        """Backward pass with gradient descent."""
+         m = X.shape[0]
+-        
+         # Output layer gradients
+         dz2 = output - y.reshape(-1, 1)
+         dW2 = (self.a1.T @ dz2) / m
+         db2 = np.sum(dz2, axis=0, keepdims=True) / m
+-        
+         # Hidden layer gradients
+         da1 = dz2 @ self.W2.T
+-        dz1 = da1 * self.a1 * (1 - self.a1)  # Sigmoid derivative
++        dz1 = da1 * relu_derivative(self.z1)
+         dW1 = (X.T @ dz1) / m
+         db1 = np.sum(dz1, axis=0, keepdims=True) / m
+-        
+         # Update weights
+         self.W2 -= lr * dW2
+         self.b2 -= lr * db2
+         self.W1 -= lr * dW1
+         self.b1 -= lr * db1
+-        
+         # Compute loss
+         eps = 1e-7
+-        loss = -np.mean(y * np.log(output + eps) + (1 - y.reshape(-1, 1)) * np.log(1 - output + eps))
++        loss = -np.mean(y * np.log(output.flatten() + eps) + (1 - y) * np.log(1 - output.flatten() + eps))
+         return loss
+-    
+     def predict(self, X: np.ndarray) -> np.ndarray:
+-        """Predict class labels."""
+         output = self.forward(X)
+         return (output > 0.5).astype(int).flatten()
+ 
+-
+-def train(epochs: int = 1000, lr: float = 10.0) -> Dict[str, Any]:
+-    """Train the neural network.
+-    
+-    BUGS:
+-    1. lr=10.0 is WAY too high - causes divergence
+-    2. epochs=1000 with inefficient loop is too slow
+-    3. No early stopping
+-    """
++def train(epochs: int = 200, lr: float = 0.05, batch_size: int = 64, patience: int = 15) -> Dict[str, Any]:
++    """Train the neural network with batch processing and early stopping."""
+     print("Generating data...")
+     X_train, y_train, X_test, y_test = generate_data(n_samples=2000)
+-    
+     print("Initializing model...")
+-    model = NeuralNetwork(input_size=2, hidden_size=4)  # BUG: hidden_size too small
+-    
+-    print(f"Training for {epochs} epochs with lr={lr}...")
++    model = NeuralNetwork(input_size=2, hidden_size=16)
++    print(f"Training for up to {epochs} epochs with lr={lr}, batch_size={batch_size}...")
+     start_time = time.time()
+-    
+     losses = []
++    best_loss = float('inf')
++    best_weights = None
++    patience_counter = 0
+     for epoch in range(epochs):
+-        # BUG: Processing one sample at a time is SLOW
+-        # Should use batch processing
+-        for i in range(len(X_train)):
+-            x = X_train[i:i+1]
+-            y = y_train[i:i+1]
+-            output = model.forward(x)
+-            loss = model.backward(x, y, output, lr)
+-        
++        # Shuffle training data
++        idx = np.random.permutation(len(X_train))
++        X_train_shuf = X_train[idx]
++        y_train_shuf = y_train[idx]
++        # Mini-batch training
++        for i in range(0, len(X_train_shuf), batch_size):
++            x_batch = X_train_shuf[i:i+batch_size]
++            y_batch = y_train_shuf[i:i+batch_size]
++            output = model.forward(x_batch)
++            loss = model.backward(x_batch, y_batch, output, lr)
+         # Compute epoch loss
+         output = model.forward(X_train)
+         eps = 1e-7
+         epoch_loss = -np.mean(
+-            y_train * np.log(output.flatten() + eps) + 
++            y_train * np.log(output.flatten() + eps) +
+             (1 - y_train) * np.log(1 - output.flatten() + eps)
+         )
+         losses.append(epoch_loss)
+-        
+-        if epoch % 100 == 0:
++        if epoch % 10 == 0:
+             print(f"  Epoch {epoch}: loss = {epoch_loss:.4f}")
+-        
+-        # BUG: No early stopping - wastes time even after convergence
+-    
++        # Early stopping
++        if epoch_loss < best_loss - 1e-4:
++            best_loss = epoch_loss
++            best_weights = (model.W1.copy(), model.b1.copy(), model.W2.copy(), model.b2.copy())
++            patience_counter = 0
++        else:
++            patience_counter += 1
++        if patience_counter >= patience:
++            print(f"Early stopping at epoch {epoch} (no improvement in {patience} epochs)")
++            break
++        # Time check
++        if time.time() - start_time > 28:
++            print("Stopping early to meet training_time < 30s requirement.")
++            break
++    # Restore best weights
++    if best_weights is not None:
++        model.W1, model.b1, model.W2, model.b2 = best_weights
+     training_time = time.time() - start_time
+-    
+     # Evaluate
+     predictions = model.predict(X_test)
+     accuracy = np.mean(predictions == y_test)
+-    final_loss = losses[-1] if losses else float('inf')
+-    
++    final_loss = best_loss if losses else float('inf')
+     print(f"\nResults:")
+     print(f"  accuracy: {accuracy:.4f}")
+     print(f"  loss: {final_loss:.4f}")
+     print(f"  training_time: {training_time:.2f}")
+-    
+-    # Save metrics to artifacts
++    # Save metrics to artifacts (legacy, for compatibility)
+     os.makedirs("artifacts", exist_ok=True)
+     metrics = {
+         "accuracy": float(accuracy),
+         "loss": float(final_loss),
+         "training_time": float(training_time)
+     }
+-    
+     with open("artifacts/metrics.json", "w") as f:
+         json.dump(metrics, f, indent=2)
+-    
+     print(f"\nMetrics saved to artifacts/metrics.json")
+-    
++    # Emit A-pattern metrics artifacts (baseline/current/merged)
++    emit_metrics_artifacts(metrics)
+     # Check requirements
+     success = accuracy >= 0.85 and final_loss <= 0.5 and training_time < 30
+     if success:
+@@ -187,10 +230,7 @@ def train(epochs: int = 1000, lr: float = 10.0) -> Dict[str, Any]:
+             print(f"   - loss {final_loss:.4f} > 0.5")
+         if training_time >= 30:
+             print(f"   - training_time {training_time:.2f}s >= 30s")
+-    
+     return metrics
+ 
+-
+ if __name__ == "__main__":
+     train()
+-

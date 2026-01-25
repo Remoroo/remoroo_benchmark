@@ -1,0 +1,199 @@
+diff --git a/pkg/z_legacy_systems/processor.py b/pkg/z_legacy_systems/processor.py
+index 564523f..9720918 100644
+--- a/pkg/z_legacy_systems/processor.py
++++ b/pkg/z_legacy_systems/processor.py
+@@ -1,3 +1,7 @@
++import os
++import pathlib
++import json
++import time
+ 
+ class LegacyHiddenProcessor:
+     """
+@@ -6,11 +10,75 @@ class LegacyHiddenProcessor:
+     """
+     def __init__(self):
+         self.valid = True
+-        
++
+     def process(self, data):
+-        # BUG: Returns True even if data is invalid
+-        # Should check if data is valid
++        # Returns True only if data is valid (non-empty), False otherwise
+         if not data:
+-            # return False # Fix is commented out
+-            return True
++            return False
+         return True
++
++def _emit_remoroo_metrics(tests_passed_value):
++    # Use the required env var for artifact dir
++    artifacts_dir = pathlib.Path(os.environ["REMOROO_ARTIFACTS_DIR"])
++    artifacts_dir.mkdir(exist_ok=True)
++    phase = os.environ.get("REMOROO_METRICS_PHASE", "current")
++    metric_name = "tests_passed"
++    metric_value = tests_passed_value
++    # Compose targets
++    targets = []
++    if phase == "baseline":
++        targets.append(artifacts_dir / "baseline_metrics.json")
++    else:
++        targets.append(artifacts_dir / "current_metrics.json")
++    targets.append(artifacts_dir / "metrics.json")
++    for target_file in targets:
++        print(f"DEBUG: Checking {target_file}, exists={target_file.exists()}")
++        data = {}
++        if target_file.exists():
++            try:
++                with open(target_file, "r") as f:
++                    data = json.load(f)
++                    print(f"DEBUG: Read merged keys: {list(data.get('metrics', {}).keys())}")
++            except Exception as e:
++                print(f"DEBUG: Failed to read {target_file}: {e}")
++                data = {}
++        # Initialize A-pattern if needed
++        if "metrics" not in data:
++            data["metrics"] = {}
++            data["version"] = 1
++            data["phase"] = phase
++            data["created_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
++            data["source"] = "pkg.z_legacy_systems.processor"
++            data["metrics_with_units"] = {metric_name: {"value": metric_value, "unit": ""}}
++        # Update metric
++        data["metrics"][metric_name] = metric_value
++        data["metrics_with_units"][metric_name] = {"value": metric_value, "unit": ""}
++        # Also update baseline_metrics key if in baseline phase (for metrics.json compatibility)
++        if phase == "baseline" and target_file.name == "metrics.json":
++            if "baseline_metrics" not in data:
++                data["baseline_metrics"] = {}
++            data["baseline_metrics"][metric_name] = metric_value
++        print(f"DEBUG: Writing {target_file.name} keys: {list(data['metrics'].keys())}")
++        with open(target_file, "w") as f:
++            json.dump(data, f, indent=2)
++
++def main():
++    # Simulate a test run: does LegacyHiddenProcessor.process return correct value for valid/invalid data?
++    processor = LegacyHiddenProcessor()
++    # For this repo, the bug is that process returns True even for invalid data
++    # We'll treat 'tests_passed' as True iff process returns False for invalid data
++    # (i.e., the bug is fixed)
++    try:
++        valid_result = processor.process("some data")
++        invalid_result = processor.process("")
++        # The correct behavior: valid_result==True, invalid_result==False
++        # Current buggy: both True
++        tests_passed = (valid_result is True) and (invalid_result is False)
++        _emit_remoroo_metrics(tests_passed)
++    except Exception as e:
++        # If exception, treat as test failure
++        _emit_remoroo_metrics(False)
++        raise
++
++if __name__ == "__main__":
++    main()
+diff --git a/remoroo_monitor.py b/remoroo_monitor.py
+new file mode 100644
+index 0000000..e593c4a
+--- /dev/null
++++ b/remoroo_monitor.py
+@@ -0,0 +1,100 @@
++"""
++Runtime monitoring helper for Remoroo instrumentation.
++This module is injected into the user's repository during experimentation.
++It provides a safe, atomic way to emit metrics without race conditions.
++"""
++import os
++import json
++import uuid
++import time
++import sys
++from typing import Any, Optional
++
++class MetricEmitter:
++    """
++    Handles atomic emission of metrics to partial artifact files.
++    This avoids lock contention and race conditions when multiple processes
++    try to write to a single metrics.json file.
++    """
++    
++    def __init__(self, artifact_dir: Optional[str] = None):
++        """
++        Initialize the emitter.
++        
++        Args:
++            artifact_dir: Optional explicit path. If None, looks for REMOROO_ARTIFACTS_DIR
++                         env var, or falls back to 'artifacts' in current directory.
++        """
++        self.artifact_dir = (
++            artifact_dir 
++            or os.environ.get("REMOROO_ARTIFACTS_DIR") 
++            or os.path.join(os.getcwd(), "artifacts")
++        )
++        # Ensure it exists (safe mkdir)
++        try:
++            os.makedirs(self.artifact_dir, exist_ok=True)
++        except Exception:
++            pass
++            
++        self.pid = os.getpid()
++        self.process_uuid = str(uuid.uuid4())[:8]
++
++    def emit(self, name: str, value: Any, unit: str = "", source: str = "custom_instrumentation") -> bool:
++        """
++        Emit a single metric to a unique partial artifact file.
++        
++        Args:
++            name: Metric name
++            value: Metric value
++            unit: Optional unit string
++            source: Source identifier
++            
++        Returns:
++            bool: True if write succeeded, False otherwise.
++        """
++        try:
++            timestamp = time.time()
++            # Unique filename for this emission to guarantee atomicity
++            # format: partial_{timestamp}_{uuid}_{name}.json
++            # We include name in filename to make debugging easier, but uuid ensures uniqueness
++            safe_name = "".join(c for c in name if c.isalnum() or c in "._-")[:50]
++            filename = f"partial_{timestamp:.6f}_{self.process_uuid}_{safe_name}.json"
++            filepath = os.path.join(self.artifact_dir, filename)
++            
++            payload = {
++                "metric_name": name,
++                "value": value,
++                "unit": unit,
++                "source": source,
++                "timestamp": timestamp,
++                "pid": self.pid,
++                "process_uuid": self.process_uuid,
++                "version": "1.0" # schema version for partial artifacts
++            }
++            
++            # Atomic write pattern: write to temp then rename (if on POSIX)
++            # For simplicity in this injected helper, we just write a unique file.
++            # Since the filename includes random UUID time, collision is effectively impossible.
++            with open(filepath, "w", encoding="utf-8") as f:
++                json.dump(payload, f)
++                
++            return True
++        except Exception as e:
++            # Last resort stderr logging if emission fails
++            sys.stderr.write(f"[Remoroo] Failed to emit metric '{name}': {e}\n")
++            return False
++
++# Global instance for easy import usage
++_global_emitter = None
++
++def emit(name: str, value: Any, unit: str = "", source: str = "custom_instrumentation"):
++    """
++    Global convenience function.
++    Usage:
++        import monitor
++        monitor.emit("accuracy", 0.95)
++    """
++    global _global_emitter
++    if _global_emitter is None:
++        _global_emitter = MetricEmitter()
++    return _global_emitter.emit(name, value, unit, source)

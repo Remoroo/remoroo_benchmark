@@ -1,0 +1,366 @@
+diff --git a/hiddenapp/cli.py b/hiddenapp/cli.py
+index c7e3adf..2fc1acb 100644
+--- a/hiddenapp/cli.py
++++ b/hiddenapp/cli.py
+@@ -1,9 +1,62 @@
+ import json
+ import os
+ import time
++import pathlib
+ 
+ from .pipeline.run import run_job
+ 
++def emit_metrics_artifacts(metrics_dict, phase):
++    import sys
++    import time
++    # Use the guaranteed env var for artifact dir
++    artifacts_dir = pathlib.Path(os.environ["REMOROO_ARTIFACTS_DIR"])
++    artifacts_dir.mkdir(exist_ok=True)
++    # Determine targets
++    targets = []
++    if phase == "baseline":
++        targets.append(artifacts_dir / "baseline_metrics.json")
++    else:
++        targets.append(artifacts_dir / "current_metrics.json")
++    targets.append(artifacts_dir / "metrics.json")
++    for target_file in targets:
++        print(f"DEBUG: Checking {target_file}, exists={target_file.exists()}")
++        data = {}
++        if target_file.exists():
++            try:
++                with open(target_file, "r") as f:
++                    data = json.load(f)
++                    print(f"DEBUG: Read merged keys: {list(data.get('metrics', {}).keys())}")
++            except Exception as e:
++                print(f"DEBUG: Failed to read {target_file}: {e}")
++                data = {}
++        # Initialize A-pattern if needed
++        if "metrics" not in data:
++            data["metrics"] = {}
++            data["version"] = 1
++            data["phase"] = phase
++            data["created_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
++            data["source"] = "remoroo-instrumentation"
++        # Update metrics
++        for k, v in metrics_dict.items():
++            data["metrics"][k] = v
++        # Also update baseline_metrics key if in baseline phase (for metrics.json compatibility)
++        if phase == "baseline" and target_file.name == "metrics.json":
++            if "baseline_metrics" not in data:
++                data["baseline_metrics"] = {}
++            for k, v in metrics_dict.items():
++                data["baseline_metrics"][k] = v
++        # Add metrics_with_units for A-pattern
++        if "metrics_with_units" not in data:
++            data["metrics_with_units"] = {}
++        # Only add units for known metrics
++        for k, v in metrics_dict.items():
++            if k == "runtime_s":
++                data["metrics_with_units"][k] = {"value": v, "unit": "s"}
++            elif k == "accuracy":
++                data["metrics_with_units"][k] = {"value": v, "unit": ""}
++        print(f"DEBUG: Writing keys: {list(data['metrics'].keys())}")
++        with open(target_file, "w") as f:
++            json.dump(data, f, indent=2)
+ 
+ def main() -> int:
+     os.makedirs("artifacts", exist_ok=True)
+@@ -21,5 +74,13 @@ def main() -> int:
+     with open(os.path.join("artifacts", "run_stats.json"), "w") as f:
+         json.dump({"elapsed_ms": elapsed_ms, "acc1": acc}, f, indent=2)
+ 
+-    return 0
++    # --- METRICS ARTIFACT EMISSION ---
++    phase = os.environ.get("REMOROO_METRICS_PHASE", "current")
++    metrics = {
++        "runtime_s": float(f"{elapsed_s:.6f}"),
++        "accuracy": float(f"{acc:.6f}")
++    }
++    emit_metrics_artifacts(metrics, phase)
++    # --- END METRICS ARTIFACT EMISSION ---
+ 
++    return 0
+diff --git a/hiddenapp/pipeline/data.py b/hiddenapp/pipeline/data.py
+index ca30319..b516924 100644
+--- a/hiddenapp/pipeline/data.py
++++ b/hiddenapp/pipeline/data.py
+@@ -1,22 +1,28 @@
+ import random
+ from typing import List, Tuple
+ 
+-
+ def make_dataset(seed: int = 123, n_rows: int = 7000) -> List[Tuple[str, int]]:
+     """
+     Deterministic synthetic dataset.
+     Label is 1 if any of the 'hot' tokens appear.
++    Optimized for speed: precompute vocab and hot set, minimize per-row allocations.
+     """
+     rnd = random.Random(seed)
+     vocab = [f"tok{i}" for i in range(6000)]
+     hot = {"tok7", "tok42", "tok99", "tok1234"}
+-    rows: List[Tuple[str, int]] = []
++    rows = []
++    toks = [None] * 22  # Preallocate max possible tokens per row
+     for _ in range(n_rows):
+         k = 10 + rnd.randint(0, 12)
+-        toks = [vocab[rnd.randint(0, len(vocab) - 1)] for _ in range(k)]
+-        # Add some noise/punct
+-        txt = " ".join(toks) + (" !!!" if rnd.random() < 0.1 else "")
+-        y = 1 if any(t in hot for t in toks) else 0
++        for i in range(k):
++            toks[i] = vocab[rnd.randint(0, 5999)]
++        txt = " ".join(toks[:k])
++        if rnd.random() < 0.1:
++            txt += " !!!"
++        y = 0
++        for i in range(k):
++            if toks[i] in hot:
++                y = 1
++                break
+         rows.append((txt, y))
+     return rows
+-
+diff --git a/hiddenapp/pipeline/features.py b/hiddenapp/pipeline/features.py
+index eb08223..a77e348 100644
+--- a/hiddenapp/pipeline/features.py
++++ b/hiddenapp/pipeline/features.py
+@@ -1,18 +1,15 @@
+-from typing import Dict, List
+-
++from typing import Dict, List, Set
+ 
+ def featurize(tokens: List[str], vocab_list: List[str]) -> Dict[str, int]:
+     """
+-    Intentionally inefficient:
+-    - list membership check makes this O(n * vocab)
++    Efficient featurization: use set for vocab lookup (O(1) per token).
+     """
++    vocab_set: Set[str] = set(vocab_list)
+     out: Dict[str, int] = {}
+     for t in tokens:
+-        if t in vocab_list:
++        if t in vocab_set:
+             out[t] = out.get(t, 0) + 1
+     return out
+ 
+-
+ def build_vocab_list(size: int = 6000) -> List[str]:
+     return [f"tok{i}" for i in range(size)]
+-
+diff --git a/hiddenapp/pipeline/tokenize.py b/hiddenapp/pipeline/tokenize.py
+index d0f5fab..3283a89 100644
+--- a/hiddenapp/pipeline/tokenize.py
++++ b/hiddenapp/pipeline/tokenize.py
+@@ -1,13 +1,11 @@
+ import re
+ from typing import List
+ 
++# Compile regex pattern once at module level for efficiency
++_pat = re.compile(r"[A-Za-z0-9_]+")
+ 
+ def tokenize(text: str) -> List[str]:
+     """
+-    Intentionally slow:
+-    - compiles regex each call
+-    - uses a slightly heavier pattern than needed
++    Efficient tokenization using precompiled regex.
+     """
+-    pat = re.compile(r"[A-Za-z0-9_]+")
+-    return pat.findall(text.lower())
+-
++    return _pat.findall(text.lower())
+diff --git a/main.py b/main.py
+new file mode 100644
+index 0000000..d2d8d48
+--- /dev/null
++++ b/main.py
+@@ -0,0 +1,83 @@
++import time
++import os
++import json
++import sys
++import threading
++
++# Use the hiddenapp pipeline directly for performance and quality evaluation
++from hiddenapp.pipeline.run import run_job
++
++def main():
++    os.makedirs("artifacts", exist_ok=True)
++    t0 = time.time()
++
++    # Run run_job in a separate thread to allow for potential parallelism in the future
++    # and to avoid GIL issues if run_job is I/O bound.
++    result = {}
++    def job_wrapper():
++        result['acc'] = run_job()
++
++    job_thread = threading.Thread(target=job_wrapper)
++    job_thread.start()
++    job_thread.join()
++    acc = result['acc']
++    elapsed_s = time.time() - t0
++
++    # Print contract metric names for easy extraction
++    print(f"runtime_s={elapsed_s:.6f}")
++    print(f"accuracy={acc:.6f}")
++
++    # Write metrics artifact for contract compliance
++    metrics = {
++        "runtime_s": float(f"{elapsed_s:.6f}"),
++        "accuracy": float(f"{acc:.6f}")
++    }
++    phase = os.environ.get("REMOROO_METRICS_PHASE", "current")
++    artifacts_dir = os.environ.get("REMOROO_ARTIFACTS_DIR", "artifacts")
++    os.makedirs(artifacts_dir, exist_ok=True)
++    # Write to metrics.json (merged), and current/baseline as needed
++    targets = []
++    if phase == "baseline":
++        targets.append(os.path.join(artifacts_dir, "baseline_metrics.json"))
++    else:
++        targets.append(os.path.join(artifacts_dir, "current_metrics.json"))
++    targets.append(os.path.join(artifacts_dir, "metrics.json"))
++    for target_file in targets:
++        data = {}
++        if os.path.exists(target_file):
++            try:
++                with open(target_file, "r") as f:
++                    data = json.load(f)
++            except Exception:
++                data = {}
++        if "metrics" not in data:
++            data["metrics"] = {}
++            data["version"] = 1
++            data["phase"] = phase
++            data["created_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
++            data["source"] = "main.py-entrypoint"
++        for k, v in metrics.items():
++            data["metrics"][k] = v
++        if phase == "baseline" and os.path.basename(target_file) == "metrics.json":
++            if "baseline_metrics" not in data:
++                data["baseline_metrics"] = {}
++            for k, v in metrics.items():
++                data["baseline_metrics"][k] = v
++        if "metrics_with_units" not in data:
++            data["metrics_with_units"] = {}
++        for k, v in metrics.items():
++            if k == "runtime_s":
++                data["metrics_with_units"][k] = {"value": v, "unit": "s"}
++            elif k == "accuracy":
++                data["metrics_with_units"][k] = {"value": v, "unit": ""}
++        with open(target_file, "w") as f:
++            json.dump(data, f, indent=2)
++
++    # Also write a machine-readable log for reference
++    with open(os.path.join(artifacts_dir, "run_stats.json"), "w") as f:
++        json.dump({"elapsed_s": elapsed_s, "accuracy": acc}, f, indent=2)
++
++    return 0
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/remoroo_monitor.py b/remoroo_monitor.py
+new file mode 100644
+index 0000000..e593c4a
+--- /dev/null
++++ b/remoroo_monitor.py
+@@ -0,0 +1,100 @@
++"""
++Runtime monitoring helper for Remoroo instrumentation.
++This module is injected into the user's repository during experimentation.
++It provides a safe, atomic way to emit metrics without race conditions.
++"""
++import os
++import json
++import uuid
++import time
++import sys
++from typing import Any, Optional
++
++class MetricEmitter:
++    """
++    Handles atomic emission of metrics to partial artifact files.
++    This avoids lock contention and race conditions when multiple processes
++    try to write to a single metrics.json file.
++    """
++    
++    def __init__(self, artifact_dir: Optional[str] = None):
++        """
++        Initialize the emitter.
++        
++        Args:
++            artifact_dir: Optional explicit path. If None, looks for REMOROO_ARTIFACTS_DIR
++                         env var, or falls back to 'artifacts' in current directory.
++        """
++        self.artifact_dir = (
++            artifact_dir 
++            or os.environ.get("REMOROO_ARTIFACTS_DIR") 
++            or os.path.join(os.getcwd(), "artifacts")
++        )
++        # Ensure it exists (safe mkdir)
++        try:
++            os.makedirs(self.artifact_dir, exist_ok=True)
++        except Exception:
++            pass
++            
++        self.pid = os.getpid()
++        self.process_uuid = str(uuid.uuid4())[:8]
++
++    def emit(self, name: str, value: Any, unit: str = "", source: str = "custom_instrumentation") -> bool:
++        """
++        Emit a single metric to a unique partial artifact file.
++        
++        Args:
++            name: Metric name
++            value: Metric value
++            unit: Optional unit string
++            source: Source identifier
++            
++        Returns:
++            bool: True if write succeeded, False otherwise.
++        """
++        try:
++            timestamp = time.time()
++            # Unique filename for this emission to guarantee atomicity
++            # format: partial_{timestamp}_{uuid}_{name}.json
++            # We include name in filename to make debugging easier, but uuid ensures uniqueness
++            safe_name = "".join(c for c in name if c.isalnum() or c in "._-")[:50]
++            filename = f"partial_{timestamp:.6f}_{self.process_uuid}_{safe_name}.json"
++            filepath = os.path.join(self.artifact_dir, filename)
++            
++            payload = {
++                "metric_name": name,
++                "value": value,
++                "unit": unit,
++                "source": source,
++                "timestamp": timestamp,
++                "pid": self.pid,
++                "process_uuid": self.process_uuid,
++                "version": "1.0" # schema version for partial artifacts
++            }
++            
++            # Atomic write pattern: write to temp then rename (if on POSIX)
++            # For simplicity in this injected helper, we just write a unique file.
++            # Since the filename includes random UUID time, collision is effectively impossible.
++            with open(filepath, "w", encoding="utf-8") as f:
++                json.dump(payload, f)
++                
++            return True
++        except Exception as e:
++            # Last resort stderr logging if emission fails
++            sys.stderr.write(f"[Remoroo] Failed to emit metric '{name}': {e}\n")
++            return False
++
++# Global instance for easy import usage
++_global_emitter = None
++
++def emit(name: str, value: Any, unit: str = "", source: str = "custom_instrumentation"):
++    """
++    Global convenience function.
++    Usage:
++        import monitor
++        monitor.emit("accuracy", 0.95)
++    """
++    global _global_emitter
++    if _global_emitter is None:
++        _global_emitter = MetricEmitter()
++    return _global_emitter.emit(name, value, unit, source)

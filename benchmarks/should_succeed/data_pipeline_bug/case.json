@@ -1,0 +1,12 @@
+{
+  "case_id": "data_pipeline_bug",
+  "name": "Fix Data Pipeline Aggregation Bug",
+  "description": "Fix a subtle bug in a multi-file data pipeline that incorrectly aggregates time-series data",
+  "repo_path": "repo",
+  "goal": "Fix the data pipeline so that running 'python main.py' correctly aggregates sales data by month and produces the expected output. The pipeline must read data from input.csv, process it through the transformer, aggregate by month, and output results to output.json. The final aggregated total should be 12500.",
+  "metrics": "aggregated_total == 12500",
+  "expected_outcome": "success",
+  "timeout_s": 600,
+  "max_turns": 8
+}
+

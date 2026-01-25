@@ -1,0 +1,253 @@
+diff --git a/api_client.py b/api_client.py
+index 2c201a2..ec41835 100644
+--- a/api_client.py
++++ b/api_client.py
+@@ -2,6 +2,9 @@
+ 
+ import time
+ from typing import Optional, Dict, Any
++import os
++import pathlib
++import json
+ 
+ # Simulated server state (fails first 2 requests, then succeeds)
+ _request_count = 0
+@@ -36,9 +39,7 @@ class APIError(Exception):
+ class APIClient:
+     """A simple API client.
+     
+-    BUG: No retry logic! Fails immediately on transient errors.
+-    
+-    GOAL: Implement retry with exponential backoff:
++    Implements retry with exponential backoff:
+     - Retry up to 3 times on transient errors (500, 502, 503, 504)
+     - Wait 1s before first retry, 2s before second, 4s before third
+     - Raise APIError if all retries fail
+@@ -49,25 +50,78 @@ class APIClient:
+         self.request_count = 0
+     
+     def fetch_data(self, endpoint: str) -> Dict[str, Any]:
+-        """Fetch data from an API endpoint.
+-        
+-        BUG: No retry logic - fails immediately on any error.
+-        
+-        TODO: Add retry with exponential backoff:
+-        - max_retries = 3
+-        - transient_errors = [500, 502, 503, 504]
+-        - delays = [1, 2, 4] seconds (exponential backoff)
+-        """
++        """Fetch data from an API endpoint with retry logic and exponential backoff."""
+         self.request_count += 1
+-        
+-        # Make the API call (simulated)
+-        response = _simulated_api_call(endpoint)
+-        
+-        # BUG: No retry on transient errors!
+-        if response["status"] != 200:
+-            raise APIError(response["status"], response.get("error", "Unknown error"))
+-        
+-        return response["data"]
++        max_retries = 3
++        transient_errors = {500, 502, 503, 504}
++        delays = [1, 2, 4]  # seconds
++        attempt = 0
++        last_error = None
++        while attempt < max_retries:
++            response = _simulated_api_call(endpoint)
++            if response["status"] == 200:
++                return response["data"]
++            elif response["status"] in transient_errors:
++                last_error = APIError(response["status"], response.get("error", "Unknown error"))
++                if attempt < max_retries - 1:
++                    time.sleep(delays[attempt])
++                attempt += 1
++            else:
++                # Non-transient error, raise immediately
++                raise APIError(response["status"], response.get("error", "Unknown error"))
++        # If we get here, all retries failed
++        if last_error:
++            raise last_error
++        else:
++            raise APIError(-1, "Unknown error after retries")
++
++
++def emit_metrics_artifacts(metrics: dict, metrics_with_units: dict, phase: str, source: str):
++    import time
++    artifacts_dir = pathlib.Path(os.environ["REMOROO_ARTIFACTS_DIR"])
++    artifacts_dir.mkdir(exist_ok=True)
++    created_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
++    version = 1
++    # Determine targets
++    targets = []
++    if phase == "baseline":
++        targets.append(artifacts_dir / "baseline_metrics.json")
++    else:
++        targets.append(artifacts_dir / "current_metrics.json")
++    targets.append(artifacts_dir / "metrics.json")
++    for target_file in targets:
++        print(f"DEBUG: Checking {target_file}, exists={target_file.exists()}")
++        data = {}
++        if target_file.exists():
++            try:
++                with open(target_file, "r") as f:
++                    data = json.load(f)
++                    print(f"DEBUG: Read merged keys: {list(data.get('metrics', {}).keys())}")
++            except Exception as e:
++                print(f"DEBUG: Failed to read {target_file}: {e}")
++                data = {}
++        # Initialize A-pattern if needed
++        if "metrics" not in data:
++            data["metrics"] = {}
++            data["version"] = version
++            data["phase"] = phase
++            data["created_at"] = created_at
++            data["source"] = source
++            data["metrics_with_units"] = metrics_with_units.copy() if metrics_with_units else {}
++        # Update metrics
++        data["metrics"].update(metrics)
++        if metrics_with_units:
++            if "metrics_with_units" not in data:
++                data["metrics_with_units"] = {}
++            data["metrics_with_units"].update(metrics_with_units)
++        # For merged file, also update baseline_metrics if in baseline phase
++        if phase == "baseline" and target_file.name == "metrics.json":
++            if "baseline_metrics" not in data:
++                data["baseline_metrics"] = {}
++            data["baseline_metrics"].update(metrics)
++        print(f"DEBUG: Writing {target_file.name} keys: {list(data['metrics'].keys())}")
++        with open(target_file, "w") as f:
++            json.dump(data, f, indent=2)
+ 
+ 
+ def main():
+@@ -83,6 +137,7 @@ def main():
+     
+     start_time = time.time()
+     
++    retry_works = False
+     try:
+         result = client.fetch_data("/data")
+         elapsed = time.time() - start_time
+@@ -113,8 +168,15 @@ def main():
+     except APIError as e:
+         print(f"FAILED: API call raised error without retry: {e}")
+         print(f"retry_works: false")
++        retry_works = False
++    finally:
++        # Emit metrics artifacts
++        phase = os.environ.get("REMOROO_METRICS_PHASE", "current")
++        source = "api_client.py:main"
++        metrics = {"retry_works": bool(retry_works)}
++        metrics_with_units = {"retry_works": {"value": bool(retry_works), "unit": ""}}
++        emit_metrics_artifacts(metrics, metrics_with_units, phase, source)
+ 
+ 
+ if __name__ == "__main__":
+     main()
+-
+diff --git a/remoroo_monitor.py b/remoroo_monitor.py
+new file mode 100644
+index 0000000..e593c4a
+--- /dev/null
++++ b/remoroo_monitor.py
+@@ -0,0 +1,100 @@
++"""
++Runtime monitoring helper for Remoroo instrumentation.
++This module is injected into the user's repository during experimentation.
++It provides a safe, atomic way to emit metrics without race conditions.
++"""
++import os
++import json
++import uuid
++import time
++import sys
++from typing import Any, Optional
++
++class MetricEmitter:
++    """
++    Handles atomic emission of metrics to partial artifact files.
++    This avoids lock contention and race conditions when multiple processes
++    try to write to a single metrics.json file.
++    """
++    
++    def __init__(self, artifact_dir: Optional[str] = None):
++        """
++        Initialize the emitter.
++        
++        Args:
++            artifact_dir: Optional explicit path. If None, looks for REMOROO_ARTIFACTS_DIR
++                         env var, or falls back to 'artifacts' in current directory.
++        """
++        self.artifact_dir = (
++            artifact_dir 
++            or os.environ.get("REMOROO_ARTIFACTS_DIR") 
++            or os.path.join(os.getcwd(), "artifacts")
++        )
++        # Ensure it exists (safe mkdir)
++        try:
++            os.makedirs(self.artifact_dir, exist_ok=True)
++        except Exception:
++            pass
++            
++        self.pid = os.getpid()
++        self.process_uuid = str(uuid.uuid4())[:8]
++
++    def emit(self, name: str, value: Any, unit: str = "", source: str = "custom_instrumentation") -> bool:
++        """
++        Emit a single metric to a unique partial artifact file.
++        
++        Args:
++            name: Metric name
++            value: Metric value
++            unit: Optional unit string
++            source: Source identifier
++            
++        Returns:
++            bool: True if write succeeded, False otherwise.
++        """
++        try:
++            timestamp = time.time()
++            # Unique filename for this emission to guarantee atomicity
++            # format: partial_{timestamp}_{uuid}_{name}.json
++            # We include name in filename to make debugging easier, but uuid ensures uniqueness
++            safe_name = "".join(c for c in name if c.isalnum() or c in "._-")[:50]
++            filename = f"partial_{timestamp:.6f}_{self.process_uuid}_{safe_name}.json"
++            filepath = os.path.join(self.artifact_dir, filename)
++            
++            payload = {
++                "metric_name": name,
++                "value": value,
++                "unit": unit,
++                "source": source,
++                "timestamp": timestamp,
++                "pid": self.pid,
++                "process_uuid": self.process_uuid,
++                "version": "1.0" # schema version for partial artifacts
++            }
++            
++            # Atomic write pattern: write to temp then rename (if on POSIX)
++            # For simplicity in this injected helper, we just write a unique file.
++            # Since the filename includes random UUID time, collision is effectively impossible.
++            with open(filepath, "w", encoding="utf-8") as f:
++                json.dump(payload, f)
++                
++            return True
++        except Exception as e:
++            # Last resort stderr logging if emission fails
++            sys.stderr.write(f"[Remoroo] Failed to emit metric '{name}': {e}\n")
++            return False
++
++# Global instance for easy import usage
++_global_emitter = None
++
++def emit(name: str, value: Any, unit: str = "", source: str = "custom_instrumentation"):
++    """
++    Global convenience function.
++    Usage:
++        import monitor
++        monitor.emit("accuracy", 0.95)
++    """
++    global _global_emitter
++    if _global_emitter is None:
++        _global_emitter = MetricEmitter()
++    return _global_emitter.emit(name, value, unit, source)

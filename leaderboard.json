@@ -1,0 +1,343 @@
+{
+    "success_rate": 95.23809523809523,
+    "total_runs": 42,
+    "last_updated": "2026-01-25T13:54:44.832069",
+    "raw_results": [
+        {
+            "case_id": "data_pipeline_bug",
+            "decision": "SUCCESS",
+            "is_correct": true,
+            "elapsed_seconds": 0.0,
+            "skipped": true,
+            "report_file": "benchmarks/should_succeed/data_pipeline_bug/repo/.remoroo/runs/bc361431/final_report.md"
+        },
+        {
+            "case_id": "slow_train_streaming",
+            "decision": "SUCCESS",
+            "is_correct": true,
+            "elapsed_seconds": 0.0,
+            "skipped": true,
+            "report_file": "benchmarks/should_succeed/slow_train_streaming/repo/.remoroo/runs/4af4c5d0/final_report.md"
+        },
+        {
+            "case_id": "baseline_hidden_metrics",
+            "decision": "SUCCESS",
+            "is_correct": true,
+            "elapsed_seconds": 0.0,
+            "skipped": true,
+            "report_file": "benchmarks/should_succeed/baseline_hidden_metrics/repo/.remoroo/runs/1eb5d600/final_report.md"
+        },
+        {
+            "case_id": "data_analysis",
+            "decision": "SUCCESS",
+            "is_correct": true,
+            "elapsed_seconds": 0.0,
+            "skipped": true,
+            "report_file": "benchmarks/should_succeed/data_analysis/repo/.remoroo/runs/aba4bc7f/final_report.md"
+        },
+        {
+            "case_id": "eda_blind_spot",
+            "decision": "SUCCESS",
+            "is_correct": true,
+            "elapsed_seconds": 0.0,
+            "skipped": true,
+            "report_file": "benchmarks/should_succeed/eda_blind_spot/repo/.remoroo/runs/418e6214/final_report.md"
+        },
+        {
+            "case_id": "ml_training_multi_metric",
+            "decision": "SUCCESS",
+            "is_correct": true,
+            "elapsed_seconds": 0.0,
+            "skipped": true,
+            "report_file": "benchmarks/should_succeed/ml_training_multi_metric/repo/.remoroo/runs/2b85d5fd/final_report.md"
+        },
+        {
+            "case_id": "performance_optimization",
+            "decision": "SUCCESS",
+            "is_correct": true,
+            "elapsed_seconds": 0.0,
+            "skipped": true,
+            "report_file": "benchmarks/should_succeed/performance_optimization/repo/.remoroo/runs/941b7ace/final_report.md"
+        },
+        {
+            "case_id": "mnist_training_2m",
+            "decision": "SUCCESS",
+            "is_correct": true,
+            "elapsed_seconds": 0.0,
+            "skipped": true,
+            "report_file": "benchmarks/should_succeed/mnist_training_2m/repo/.remoroo/runs/1caf1332/final_report.md"
+        },
+        {
+            "case_id": "hard_multistage_hidden_metrics",
+            "decision": "SUCCESS",
+            "is_correct": true,
+            "elapsed_seconds": 0.0,
+            "skipped": true,
+            "report_file": "benchmarks/should_succeed/hard_multistage_hidden_metrics/repo/.remoroo/runs/5aac0802/final_report.md"
+        },
+        {
+            "case_id": "patch_brittle_repeated_blocks",
+            "decision": "SUCCESS",
+            "is_correct": true,
+            "elapsed_seconds": 0.0,
+            "skipped": true,
+            "report_file": "benchmarks/should_succeed/patch_brittle_repeated_blocks/repo/.remoroo/runs/f3af03de/final_report.md"
+        },
+        {
+            "case_id": "cache_optimization",
+            "decision": "SUCCESS",
+            "is_correct": true,
+            "elapsed_seconds": 0.0,
+            "skipped": true,
+            "report_file": "benchmarks/should_succeed/cache_optimization/repo/.remoroo/runs/6c8359d6/final_report.md"
+        },
+        {
+            "case_id": "graph_cycle_detection",
+            "decision": "SUCCESS",
+            "is_correct": true,
+            "elapsed_seconds": 0.0,
+            "skipped": true,
+            "report_file": "benchmarks/should_succeed/graph_cycle_detection/repo/.remoroo/runs/b49f9164/final_report.md"
+        },
+        {
+            "case_id": "compression_task_im",
+            "decision": "FAIL",
+            "is_correct": true,
+            "elapsed_seconds": 0.0,
+            "skipped": true,
+            "report_file": "benchmarks/should_succeed/compression_task_im/repo/.remoroo/runs/af6db92f/final_report.md"
+        },
+        {
+            "case_id": "large_repo_navigation",
+            "decision": "SUCCESS",
+            "is_correct": true,
+            "elapsed_seconds": 0.0,
+            "skipped": true,
+            "report_file": "benchmarks/should_succeed/large_repo_navigation/repo/.remoroo/runs/67a99cef/final_report.md"
+        },
+        {
+            "case_id": "async_refactor",
+            "decision": "SUCCESS",
+            "is_correct": true,
+            "elapsed_seconds": 0.0,
+            "skipped": true,
+            "report_file": "benchmarks/should_succeed/async_refactor/repo/.remoroo/runs/689bdef4/final_report.md"
+        },
+        {
+            "case_id": "regression_guardrails",
+            "decision": "SUCCESS",
+            "is_correct": true,
+            "elapsed_seconds": 0.0,
+            "skipped": true,
+            "report_file": "benchmarks/should_succeed/regression_guardrails/repo/.remoroo/runs/1b3d6a1f/final_report.md"
+        },
+        {
+            "case_id": "data_pipeline_validation",
+            "decision": "SUCCESS",
+            "is_correct": true,
+            "elapsed_seconds": 0.0,
+            "skipped": true,
+            "report_file": "benchmarks/should_succeed/data_pipeline_validation/repo/.remoroo/runs/3d4238ca/final_report.md"
+        },
+        {
+            "case_id": "fair_fast_classifier_multi_metric_simple",
+            "decision": "SUCCESS",
+            "is_correct": true,
+            "elapsed_seconds": 0.0,
+            "skipped": true,
+            "report_file": "benchmarks/should_succeed/fair_fast_classifier_multi_metric_simple/repo/.remoroo/runs/4bcc744e/final_report.md"
+        },
+        {
+            "case_id": "complex_refactor",
+            "decision": "SUCCESS",
+            "is_correct": true,
+            "elapsed_seconds": 0.0,
+            "skipped": true,
+            "report_file": "benchmarks/should_succeed/complex_refactor/repo/.remoroo/runs/db2b5dfd/final_report.md"
+        },
+        {
+            "case_id": "memory_leak_fix",
+            "decision": "SUCCESS",
+            "is_correct": true,
+            "elapsed_seconds": 0.0,
+            "skipped": true,
+            "report_file": "benchmarks/should_succeed/memory_leak_fix/repo/.remoroo/runs/df57136b/final_report.md"
+        },
+        {
+            "case_id": "state_machine_bug",
+            "decision": "SUCCESS",
+            "is_correct": true,
+            "elapsed_seconds": 0.0,
+            "skipped": true,
+            "report_file": "benchmarks/should_succeed/state_machine_bug/repo/.remoroo/runs/65df3ea5/final_report.md"
+        },
+        {
+            "case_id": "algorithm_implementation",
+            "decision": "SUCCESS",
+            "is_correct": true,
+            "elapsed_seconds": 0.0,
+            "skipped": true,
+            "report_file": "benchmarks/should_succeed/algorithm_implementation/repo/.remoroo/runs/0a5dcedb/final_report.md"
+        },
+        {
+            "case_id": "deadlock_fix",
+            "decision": "PARTIAL_SUCCESS",
+            "is_correct": false,
+            "elapsed_seconds": 0.0,
+            "skipped": true,
+            "report_file": "benchmarks/should_succeed/deadlock_fix/repo/.remoroo/runs/234f2415/final_report.md"
+        },
+        {
+            "case_id": "api_client_retry",
+            "decision": "SUCCESS",
+            "is_correct": true,
+            "elapsed_seconds": 0.0,
+            "skipped": true,
+            "report_file": "benchmarks/should_succeed/api_client_retry/repo/.remoroo/runs/a2da3a76/final_report.md"
+        },
+        {
+            "case_id": "string_processing_fix",
+            "decision": "SUCCESS",
+            "is_correct": true,
+            "elapsed_seconds": 0.0,
+            "skipped": true,
+            "report_file": "benchmarks/should_succeed/string_processing_fix/repo/.remoroo/runs/ae39597a/final_report.md"
+        },
+        {
+            "case_id": "baseline_log_aliases",
+            "decision": "SUCCESS",
+            "is_correct": true,
+            "elapsed_seconds": 0.0,
+            "skipped": true,
+            "report_file": "benchmarks/should_succeed/baseline_log_aliases/repo/.remoroo/runs/7adff2fa/final_report.md"
+        },
+        {
+            "case_id": "race_condition_fix",
+            "decision": "SUCCESS",
+            "is_correct": true,
+            "elapsed_seconds": 0.0,
+            "skipped": true,
+            "report_file": "benchmarks/should_succeed/race_condition_fix/repo/.remoroo/runs/e9207fa6/final_report.md"
+        },
+        {
+            "case_id": "multi_file_refactor",
+            "decision": "SUCCESS",
+            "is_correct": true,
+            "elapsed_seconds": 0.0,
+            "skipped": true,
+            "report_file": "benchmarks/should_succeed/multi_file_refactor/repo/.remoroo/runs/3129e946/final_report.md"
+        },
+        {
+            "case_id": "env_recovery",
+            "decision": "SUCCESS",
+            "is_correct": true,
+            "elapsed_seconds": 0.0,
+            "skipped": true,
+            "report_file": "benchmarks/should_succeed/env_recovery/repo/.remoroo/runs/0f20371f/final_report.md"
+        },
+        {
+            "case_id": "fibonacci_fix",
+            "decision": "SUCCESS",
+            "is_correct": true,
+            "elapsed_seconds": 0.0,
+            "skipped": true,
+            "report_file": "benchmarks/should_succeed/fibonacci_fix/repo/.remoroo/runs/2417d68b/final_report.md"
+        },
+        {
+            "case_id": "ambiguous_date_parsing",
+            "decision": "SUCCESS",
+            "is_correct": true,
+            "elapsed_seconds": 0.0,
+            "skipped": true,
+            "report_file": "benchmarks/should_succeed/ambiguous_date_parsing/repo/.remoroo/runs/5a754e10/final_report.md"
+        },
+        {
+            "case_id": "noisy_metrics_stabilization",
+            "decision": "SUCCESS",
+            "is_correct": true,
+            "elapsed_seconds": 0.0,
+            "skipped": true,
+            "report_file": "benchmarks/should_succeed/noisy_metrics_stabilization/repo/.remoroo/runs/7f86824e/final_report.md"
+        },
+        {
+            "case_id": "floating_point_precision",
+            "decision": "SUCCESS",
+            "is_correct": true,
+            "elapsed_seconds": 0.0,
+            "skipped": true,
+            "report_file": "benchmarks/should_succeed/floating_point_precision/repo/.remoroo/runs/e7b9ac4c/final_report.md"
+        },
+        {
+            "case_id": "hard_discovery",
+            "decision": "SUCCESS",
+            "is_correct": true,
+            "elapsed_seconds": 0.0,
+            "skipped": true,
+            "report_file": "benchmarks/should_succeed/hard_discovery/repo/.remoroo/runs/11d9f433/final_report.md"
+        },
+        {
+            "case_id": "large_repo_pipeline_optimization",
+            "decision": "PARTIAL_SUCCESS",
+            "is_correct": false,
+            "elapsed_seconds": 0.0,
+            "skipped": true,
+            "report_file": "benchmarks/should_succeed/large_repo_pipeline_optimization/repo/.remoroo/runs/ab3df33c/final_report.md"
+        },
+        {
+            "case_id": "code_coverage_refactor",
+            "decision": "SUCCESS",
+            "is_correct": true,
+            "elapsed_seconds": 0.0,
+            "skipped": true,
+            "report_file": "benchmarks/should_succeed/code_coverage_refactor/repo/.remoroo/runs/d6e792c7/final_report.md"
+        },
+        {
+            "case_id": "planner_suite_multi_runtime",
+            "decision": "SUCCESS",
+            "is_correct": true,
+            "elapsed_seconds": 0.0,
+            "skipped": true,
+            "report_file": "benchmarks/should_succeed/planner_suite_multi_runtime/repo/.remoroo/runs/89c3ebaa/final_report.md"
+        },
+        {
+            "case_id": "readiness_check",
+            "decision": "SUCCESS",
+            "is_correct": true,
+            "elapsed_seconds": 0.0,
+            "skipped": true,
+            "report_file": "benchmarks/should_succeed/readiness_check/repo/.remoroo/runs/182753c5/final_report.md"
+        },
+        {
+            "case_id": "bug_fix",
+            "decision": "SUCCESS",
+            "is_correct": true,
+            "elapsed_seconds": 0.0,
+            "skipped": true,
+            "report_file": "benchmarks/should_succeed/bug_fix/repo/.remoroo/runs/87a9e782/final_report.md"
+        },
+        {
+            "case_id": "fair_fast_classifier_multi_metric",
+            "decision": "PARTIAL_SUCCESS",
+            "is_correct": true,
+            "elapsed_seconds": 0.0,
+            "skipped": true,
+            "report_file": "benchmarks/should_succeed/fair_fast_classifier_multi_metric/repo/.remoroo/runs/afd347c3/final_report.md"
+        },
+        {
+            "case_id": "simpsons_paradox",
+            "decision": "SUCCESS",
+            "is_correct": true,
+            "elapsed_seconds": 0.0,
+            "skipped": true,
+            "report_file": "benchmarks/should_succeed/simpsons_paradox/repo/.remoroo/runs/bdaa244c/final_report.md"
+        },
+        {
+            "case_id": "mnist_training",
+            "decision": "SUCCESS",
+            "is_correct": true,
+            "elapsed_seconds": 0.0,
+            "skipped": true,
+            "report_file": "benchmarks/should_succeed/mnist_training/repo/.remoroo/runs/49cd37ad/final_report.md"
+        }
+    ]
+}

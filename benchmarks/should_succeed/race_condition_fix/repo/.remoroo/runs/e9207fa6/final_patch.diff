@@ -1,0 +1,270 @@
+diff --git a/counter.py b/counter.py
+index 2506a51..16168eb 100644
+--- a/counter.py
++++ b/counter.py
+@@ -1,75 +1,132 @@
+-"""Multi-threaded counter with a race condition bug."""
++"""Multi-threaded counter with a race condition bug (fixed)."""
+ 
+ import threading
+ import time
++import os
++import pathlib
++import json
++
++def emit_metrics_artifacts(metrics_dict, phase, metric_units=None):
++    # Use the guaranteed env var for artifact dir
++    artifacts_dir = pathlib.Path(os.environ["REMOROO_ARTIFACTS_DIR"])
++    artifacts_dir.mkdir(exist_ok=True)
++    targets = []
++    if phase == "baseline":
++        targets.append(artifacts_dir / "baseline_metrics.json")
++    else:
++        targets.append(artifacts_dir / "current_metrics.json")
++    targets.append(artifacts_dir / "metrics.json")
++    created_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
++    for target_file in targets:
++        print(f"DEBUG: Checking {target_file}, exists={target_file.exists()}")
++        data = {}
++        if target_file.exists():
++            try:
++                with open(target_file, "r") as f:
++                    data = json.load(f)
++                    print(f"DEBUG: Read merged keys: {list(data.get('metrics', {}).keys())}")
++            except Exception as e:
++                print(f"DEBUG: Failed to read {target_file}: {e}")
++                data = {}
++        # Initialize A-pattern if needed
++        if "metrics" not in data:
++            data["metrics"] = {}
++            data["version"] = 1
++            data["phase"] = phase
++            data["created_at"] = created_at
++            data["source"] = "counter.py"
++        # Update metrics
++        for k, v in metrics_dict.items():
++            data["metrics"][k] = v
++        # Optionally add metrics_with_units
++        if metric_units is not None:
++            if "metrics_with_units" not in data:
++                data["metrics_with_units"] = {}
++            for k, v in metrics_dict.items():
++                data["metrics_with_units"][k] = {"value": v, "unit": metric_units.get(k, "")}
++        else:
++            if "metrics_with_units" not in data:
++                data["metrics_with_units"] = {}
++            for k, v in metrics_dict.items():
++                data["metrics_with_units"][k] = {"value": v, "unit": ""}
++        # For merged file, also update baseline_metrics if in baseline phase
++        if phase == "baseline" and target_file.name == "metrics.json":
++            if "baseline_metrics" not in data:
++                data["baseline_metrics"] = {}
++            for k, v in metrics_dict.items():
++                data["baseline_metrics"][k] = v
++        print(f"DEBUG: Writing {target_file.name} keys: {list(data['metrics'].keys())}")
++        with open(target_file, "w") as f:
++            json.dump(data, f, indent=2)
+ 
+ class Counter:
+     """A simple counter class.
+-    
+-    BUG: This class has a race condition when accessed from multiple threads.
+-    The increment operation is not atomic, causing lost updates.
++
++    FIXED: This class is now thread-safe using a lock.
++    The increment operation is atomic, preventing lost updates.
+     """
+-    
++
+     def __init__(self):
+         self.value = 0
+-    
++        self._lock = threading.Lock()
++
+     def increment(self):
+-        """Increment the counter by 1.
+-        
+-        BUG: This is not thread-safe!
+-        The read-modify-write sequence can be interleaved by other threads.
+-        """
+-        current = self.value
+-        # Simulate some processing time that makes the race condition more likely
+-        time.sleep(0.0001)
+-        self.value = current + 1
+-    
+-    def get_value(self):
+-        return self.value
++        """Increment the counter by 1 in a thread-safe manner."""
++        with self._lock:
++            current = self.value
++            # Simulate some processing time that makes the race condition more likely
++            time.sleep(0.0001)
++            self.value = current + 1
+ 
++    def get_value(self):
++        with self._lock:
++            return self.value
+ 
+ def worker(counter, iterations):
+     """Worker function that increments the counter."""
+     for _ in range(iterations):
+         counter.increment()
+ 
+-
+ def main():
+     """Test the counter with multiple threads."""
+     counter = Counter()
+     threads = []
+-    
++
+     num_threads = 10
+     iterations_per_thread = 1000
+     expected_total = num_threads * iterations_per_thread
+-    
++
+     print(f"Starting {num_threads} threads, each incrementing {iterations_per_thread} times")
+     print(f"Expected final count: {expected_total}")
+-    
++
+     # Create and start threads
+     start_time = time.time()
+     for i in range(num_threads):
+         t = threading.Thread(target=worker, args=(counter, iterations_per_thread))
+         threads.append(t)
+         t.start()
+-    
++
+     # Wait for all threads to complete
+     for t in threads:
+         t.join()
+-    
++
+     elapsed = time.time() - start_time
+     final_count = counter.get_value()
+-    
++
+     print(f"\nCompleted in {elapsed:.2f} seconds")
+     print(f"final_count: {final_count}")
+     print(f"Expected: {expected_total}")
+-    
++
+     if final_count == expected_total:
+         print("SUCCESS: Counter is thread-safe!")
+     else:
+         print(f"FAILED: Lost {expected_total - final_count} increments due to race condition")
+ 
++    # --- METRICS ARTIFACT EMISSION ---
++    phase = os.environ.get("REMOROO_METRICS_PHASE", "current")
++    metrics = {"final_count": final_count}
++    metric_units = {"final_count": ""}
++    emit_metrics_artifacts(metrics, phase, metric_units)
+ 
+ if __name__ == "__main__":
+     main()
+-
+diff --git a/remoroo_monitor.py b/remoroo_monitor.py
+new file mode 100644
+index 0000000..e593c4a
+--- /dev/null
++++ b/remoroo_monitor.py
+@@ -0,0 +1,100 @@
++"""
++Runtime monitoring helper for Remoroo instrumentation.
++This module is injected into the user's repository during experimentation.
++It provides a safe, atomic way to emit metrics without race conditions.
++"""
++import os
++import json
++import uuid
++import time
++import sys
++from typing import Any, Optional
++
++class MetricEmitter:
++    """
++    Handles atomic emission of metrics to partial artifact files.
++    This avoids lock contention and race conditions when multiple processes
++    try to write to a single metrics.json file.
++    """
++    
++    def __init__(self, artifact_dir: Optional[str] = None):
++        """
++        Initialize the emitter.
++        
++        Args:
++            artifact_dir: Optional explicit path. If None, looks for REMOROO_ARTIFACTS_DIR
++                         env var, or falls back to 'artifacts' in current directory.
++        """
++        self.artifact_dir = (
++            artifact_dir 
++            or os.environ.get("REMOROO_ARTIFACTS_DIR") 
++            or os.path.join(os.getcwd(), "artifacts")
++        )
++        # Ensure it exists (safe mkdir)
++        try:
++            os.makedirs(self.artifact_dir, exist_ok=True)
++        except Exception:
++            pass
++            
++        self.pid = os.getpid()
++        self.process_uuid = str(uuid.uuid4())[:8]
++
++    def emit(self, name: str, value: Any, unit: str = "", source: str = "custom_instrumentation") -> bool:
++        """
++        Emit a single metric to a unique partial artifact file.
++        
++        Args:
++            name: Metric name
++            value: Metric value
++            unit: Optional unit string
++            source: Source identifier
++            
++        Returns:
++            bool: True if write succeeded, False otherwise.
++        """
++        try:
++            timestamp = time.time()
++            # Unique filename for this emission to guarantee atomicity
++            # format: partial_{timestamp}_{uuid}_{name}.json
++            # We include name in filename to make debugging easier, but uuid ensures uniqueness
++            safe_name = "".join(c for c in name if c.isalnum() or c in "._-")[:50]
++            filename = f"partial_{timestamp:.6f}_{self.process_uuid}_{safe_name}.json"
++            filepath = os.path.join(self.artifact_dir, filename)
++            
++            payload = {
++                "metric_name": name,
++                "value": value,
++                "unit": unit,
++                "source": source,
++                "timestamp": timestamp,
++                "pid": self.pid,
++                "process_uuid": self.process_uuid,
++                "version": "1.0" # schema version for partial artifacts
++            }
++            
++            # Atomic write pattern: write to temp then rename (if on POSIX)
++            # For simplicity in this injected helper, we just write a unique file.
++            # Since the filename includes random UUID time, collision is effectively impossible.
++            with open(filepath, "w", encoding="utf-8") as f:
++                json.dump(payload, f)
++                
++            return True
++        except Exception as e:
++            # Last resort stderr logging if emission fails
++            sys.stderr.write(f"[Remoroo] Failed to emit metric '{name}': {e}\n")
++            return False
++
++# Global instance for easy import usage
++_global_emitter = None
++
++def emit(name: str, value: Any, unit: str = "", source: str = "custom_instrumentation"):
++    """
++    Global convenience function.
++    Usage:
++        import monitor
++        monitor.emit("accuracy", 0.95)
++    """
++    global _global_emitter
++    if _global_emitter is None:
++        _global_emitter = MetricEmitter()
++    return _global_emitter.emit(name, value, unit, source)

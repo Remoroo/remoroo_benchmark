@@ -1,0 +1,361 @@
+diff --git a/remoroo_monitor.py b/remoroo_monitor.py
+new file mode 100644
+index 0000000..e593c4a
+--- /dev/null
++++ b/remoroo_monitor.py
+@@ -0,0 +1,100 @@
++"""
++Runtime monitoring helper for Remoroo instrumentation.
++This module is injected into the user's repository during experimentation.
++It provides a safe, atomic way to emit metrics without race conditions.
++"""
++import os
++import json
++import uuid
++import time
++import sys
++from typing import Any, Optional
++
++class MetricEmitter:
++    """
++    Handles atomic emission of metrics to partial artifact files.
++    This avoids lock contention and race conditions when multiple processes
++    try to write to a single metrics.json file.
++    """
++    
++    def __init__(self, artifact_dir: Optional[str] = None):
++        """
++        Initialize the emitter.
++        
++        Args:
++            artifact_dir: Optional explicit path. If None, looks for REMOROO_ARTIFACTS_DIR
++                         env var, or falls back to 'artifacts' in current directory.
++        """
++        self.artifact_dir = (
++            artifact_dir 
++            or os.environ.get("REMOROO_ARTIFACTS_DIR") 
++            or os.path.join(os.getcwd(), "artifacts")
++        )
++        # Ensure it exists (safe mkdir)
++        try:
++            os.makedirs(self.artifact_dir, exist_ok=True)
++        except Exception:
++            pass
++            
++        self.pid = os.getpid()
++        self.process_uuid = str(uuid.uuid4())[:8]
++
++    def emit(self, name: str, value: Any, unit: str = "", source: str = "custom_instrumentation") -> bool:
++        """
++        Emit a single metric to a unique partial artifact file.
++        
++        Args:
++            name: Metric name
++            value: Metric value
++            unit: Optional unit string
++            source: Source identifier
++            
++        Returns:
++            bool: True if write succeeded, False otherwise.
++        """
++        try:
++            timestamp = time.time()
++            # Unique filename for this emission to guarantee atomicity
++            # format: partial_{timestamp}_{uuid}_{name}.json
++            # We include name in filename to make debugging easier, but uuid ensures uniqueness
++            safe_name = "".join(c for c in name if c.isalnum() or c in "._-")[:50]
++            filename = f"partial_{timestamp:.6f}_{self.process_uuid}_{safe_name}.json"
++            filepath = os.path.join(self.artifact_dir, filename)
++            
++            payload = {
++                "metric_name": name,
++                "value": value,
++                "unit": unit,
++                "source": source,
++                "timestamp": timestamp,
++                "pid": self.pid,
++                "process_uuid": self.process_uuid,
++                "version": "1.0" # schema version for partial artifacts
++            }
++            
++            # Atomic write pattern: write to temp then rename (if on POSIX)
++            # For simplicity in this injected helper, we just write a unique file.
++            # Since the filename includes random UUID time, collision is effectively impossible.
++            with open(filepath, "w", encoding="utf-8") as f:
++                json.dump(payload, f)
++                
++            return True
++        except Exception as e:
++            # Last resort stderr logging if emission fails
++            sys.stderr.write(f"[Remoroo] Failed to emit metric '{name}': {e}\n")
++            return False
++
++# Global instance for easy import usage
++_global_emitter = None
++
++def emit(name: str, value: Any, unit: str = "", source: str = "custom_instrumentation"):
++    """
++    Global convenience function.
++    Usage:
++        import monitor
++        monitor.emit("accuracy", 0.95)
++    """
++    global _global_emitter
++    if _global_emitter is None:
++        _global_emitter = MetricEmitter()
++    return _global_emitter.emit(name, value, unit, source)
+diff --git a/train.py b/train.py
+index 0a16dcc..f2e3ab9 100644
+--- a/train.py
++++ b/train.py
+@@ -1,17 +1,86 @@
+ from __future__ import annotations
+-
+ import json
+ import os
+ import time
++import pathlib
+ from typing import Dict
+-
+ import numpy as np
+-
+ import config
+ from data import make_synthetic, train_test_split
+ from metrics import compute_all
+-from model import init_model, step_sgd
+ 
++def emit_metrics_artifacts(metrics: Dict[str, float]) -> None:
++    import os, pathlib, json, time
++    # Use the guaranteed env var for artifact dir
++    artifacts_dir = pathlib.Path(os.environ["REMOROO_ARTIFACTS_DIR"])
++    artifacts_dir.mkdir(exist_ok=True)
++    phase = os.environ.get("REMOROO_METRICS_PHASE", "current")
++    created_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
++    # Compose metrics_with_units (empty units per contract)
++    metrics_with_units = {k: {"value": v, "unit": ""} for k, v in metrics.items()}
++    # Compose A-pattern object
++    a_obj = {
++        "version": 1,
++        "phase": phase,
++        "metrics": dict(metrics),
++        "metrics_with_units": metrics_with_units,
++        "source": "train.py",
++        "created_at": created_at
++    }
++    # Determine targets
++    targets = []
++    if phase == "baseline":
++        targets.append(artifacts_dir / "baseline_metrics.json")
++    else:
++        targets.append(artifacts_dir / "current_metrics.json")
++    targets.append(artifacts_dir / "metrics.json")
++    for target_file in targets:
++        print(f"DEBUG: Checking {target_file}, exists={target_file.exists()}")
++        data = {}
++        if target_file.exists():
++            try:
++                with open(target_file, "r") as f:
++                    data = json.load(f)
++                    print(f"DEBUG: Read merged keys: {list(data.get('metrics', {}).keys())}")
++            except Exception as e:
++                print(f"DEBUG: Failed to read {target_file}: {e}")
++                data = {}
++        # Initialize A-pattern if needed
++        if "metrics" not in data:
++            data["metrics"] = {}
++            data["version"] = 1
++            data["phase"] = phase
++            data["created_at"] = created_at
++            data["metrics_with_units"] = metrics_with_units
++            data["source"] = "train.py"
++        # Update metrics
++        for k, v in metrics.items():
++            data["metrics"][k] = v
++        # Update metrics_with_units
++        if "metrics_with_units" not in data:
++            data["metrics_with_units"] = {}
++        for k, v in metrics.items():
++            data["metrics_with_units"][k] = {"value": v, "unit": ""}
++        # For merged file, also update baseline_metrics if in baseline phase
++        if phase == "baseline" and target_file.name == "metrics.json":
++            if "baseline_metrics" not in data:
++                data["baseline_metrics"] = {}
++            for k, v in metrics.items():
++                data["baseline_metrics"][k] = v
++        print(f"DEBUG: Writing {target_file.name} keys: {list(data['metrics'].keys())}")
++        with open(target_file, "w") as f:
++            json.dump(data, f, indent=2)
++
++def sigmoid(z):
++    # Numerically stable sigmoid
++    z = np.clip(z, -30, 30)
++    return 1.0 / (1.0 + np.exp(-z))
++
++def relu(x):
++    return np.maximum(0, x)
++
++def relu_deriv(x):
++    return (x > 0).astype(np.float64)
+ 
+ def train_one_run() -> Dict[str, float]:
+     ds = make_synthetic(seed=config.SEED, n_samples=config.N_SAMPLES, n_features=config.N_FEATURES)
+@@ -22,45 +91,108 @@ def train_one_run() -> Dict[str, float]:
+     sigma = train.X.std(axis=0) + 1e-8
+     X_train = (train.X - mu) / sigma
+     X_test = (test.X - mu) / sigma
+-
+-    model = init_model(n_features=X_train.shape[1], seed=config.SEED)
++    y_train = train.y.astype(np.float64)
++    y_test = test.y.astype(np.float64)
++    g_train = train.g.astype(np.int64)
++    g_test = test.g.astype(np.int64)
++
++    n, d = X_train.shape
++    # Improved model: 2 hidden layer MLP with ReLU, more capacity
++    hidden_dim1 = min(64, max(16, d * 4))
++    hidden_dim2 = min(32, max(8, d * 2))
++    rng = np.random.RandomState(config.SEED + 42)
++    W1 = (0.03 * rng.randn(d, hidden_dim1)).astype(np.float64)
++    b1 = np.zeros(hidden_dim1, dtype=np.float64)
++    W2 = (0.03 * rng.randn(hidden_dim1, hidden_dim2)).astype(np.float64)
++    b2 = np.zeros(hidden_dim2, dtype=np.float64)
++    W3 = (0.03 * rng.randn(hidden_dim2)).astype(np.float64)
++    b3 = 0.0
++
++    # Hyperparameters (tuned for stability and speed)
++    epochs = 120  # More epochs for better convergence
++    batch_size = 96  # Slightly smaller batch for more updates per epoch
++    lr = 0.032  # Lower learning rate for stability
++    l2_reg = 1.0e-3  # Regularization
++    fairness_weight = 0.10  # Fairness penalty
+ 
+     t0 = time.time()
+-
+-    # Intentionally slow / unstable training loop (benchmark starts "hard")
+-    n = X_train.shape[0]
+-    for epoch in range(config.EPOCHS):
+-        # crude "fairness" term: not actually correct; kept as a trap
+-        fairness_grad = 0.0
+-        if config.FAIRNESS_WEIGHT != 0.0:
+-            fairness_grad = config.FAIRNESS_WEIGHT * 0.01
+-
+-        for i in range(n):
+-            step_sgd(
+-                model=model,
+-                x=X_train[i],
+-                y=int(train.y[i]),
+-                lr=config.LEARNING_RATE,
+-                l2_reg=config.L2_REG,
+-                fairness_grad=fairness_grad,
+-            )
+-
+-        # Early stop heuristic (bad: uses test labels indirectly by peeking at test predictions distribution)
+-        if epoch % 50 == 0:
+-            probs = model.predict_proba(X_test)
+-            if float(np.mean(probs)) < 0.05 or float(np.mean(probs)) > 0.95:
+-                # Degenerate; keep going anyway (wastes time)
+-                pass
+-
++    for epoch in range(epochs):
++        idx = np.arange(n)
++        rng.shuffle(idx)
++        Xb = X_train[idx]
++        yb = y_train[idx]
++        gb = g_train[idx]
++        for start in range(0, n, batch_size):
++            end = min(start + batch_size, n)
++            X_batch = Xb[start:end]
++            y_batch = yb[start:end]
++            g_batch = gb[start:end]
++            # Forward
++            Z1 = X_batch @ W1 + b1
++            A1 = relu(Z1)
++            Z2 = A1 @ W2 + b2
++            A2 = relu(Z2)
++            Z3 = A2 @ W3 + b3
++            p = sigmoid(Z3)
++            # Loss
++            loss = -np.mean(y_batch * np.log(p + 1e-12) + (1 - y_batch) * np.log(1 - p + 1e-12))
++            # L2 regularization
++            loss += 0.5 * l2_reg * (np.sum(W1 ** 2) + np.sum(W2 ** 2) + np.sum(W3 ** 2))
++            # Fairness penalty: encourage equal mean prediction for both groups
++            mask0 = (g_batch == 0)
++            mask1 = (g_batch == 1)
++            if np.any(mask0) and np.any(mask1):
++                mean0 = np.mean(p[mask0])
++                mean1 = np.mean(p[mask1])
++                fairness_penalty = fairness_weight * (mean0 - mean1)
++                loss += fairness_weight * (mean0 - mean1) ** 2
++            else:
++                fairness_penalty = 0.0
++            # Backward
++            grad_p = p - y_batch  # (batch,)
++            grad_Z3 = grad_p * p * (1 - p)  # (batch,)
++            grad_W3 = A2.T @ grad_p / X_batch.shape[0] + l2_reg * W3
++            grad_b3 = np.mean(grad_p)
++            grad_A2 = np.outer(grad_p, W3)  # (batch, hidden_dim2)
++            grad_Z2 = grad_A2 * relu_deriv(Z2)
++            grad_W2 = A1.T @ grad_Z2 / X_batch.shape[0] + l2_reg * W2
++            grad_b2 = np.mean(grad_Z2, axis=0)
++            grad_A1 = grad_Z2 @ W2.T  # (batch, hidden_dim1)
++            grad_Z1 = grad_A1 * relu_deriv(Z1)
++            grad_W1 = X_batch.T @ grad_Z1 / X_batch.shape[0] + l2_reg * W1
++            grad_b1 = np.mean(grad_Z1, axis=0)
++            # Fairness gradient (output layer only)
++            if np.any(mask0) and np.any(mask1):
++                # d(mean0 - mean1)/dW3
++                grad_fair = np.zeros_like(W3)
++                grad_fair += fairness_weight * (
++                    (A2[mask0].sum(axis=0) / mask0.sum() if mask0.sum() > 0 else 0) -
++                    (A2[mask1].sum(axis=0) / mask1.sum() if mask1.sum() > 0 else 0)
++                )
++                grad_W3 += grad_fair
++            # Update
++            W1 -= lr * grad_W1
++            b1 -= lr * grad_b1
++            W2 -= lr * grad_W2
++            b2 -= lr * grad_b2
++            W3 -= lr * grad_W3
++            b3 -= lr * grad_b3
++        # Optionally, print progress
++        #if (epoch+1) % 10 == 0:
++        #    print(f"Epoch {epoch+1}: loss={loss:.4f}")
+     training_time = time.time() - t0
+-
+-    y_prob = model.predict_proba(X_test)
++    # Evaluate
++    Z1_test = X_test @ W1 + b1
++    A1_test = relu(Z1_test)
++    Z2_test = A1_test @ W2 + b2
++    A2_test = relu(Z2_test)
++    Z3_test = A2_test @ W3 + b3
++    y_prob = sigmoid(Z3_test)
+     y_pred = (y_prob >= 0.5).astype(np.int64)
+     metrics = compute_all(y_true=test.y, y_prob=y_prob, y_pred=y_pred, g=test.g)
+     metrics["training_time"] = float(training_time)
+     return metrics
+ 
+-
+ def main() -> None:
+     metrics: Dict[str, float]
+     try:
+@@ -68,17 +200,13 @@ def main() -> None:
+     except Exception as e:
+         metrics = {"error": str(e)}  # type: ignore[assignment]
+ 
+-    os.makedirs("artifacts", exist_ok=True)
+-    with open(os.path.join("artifacts", "metrics.json"), "w") as f:
+-        json.dump(metrics, f, indent=2)
++    # Write all required artifacts (A-pattern, merged, etc)
++    emit_metrics_artifacts(metrics)
+ 
+     # Also print a minimal summary for stdout_regex extraction
+     for k in ["accuracy", "loss", "fairness_gap", "training_time"]:
+         if k in metrics:
+             print(f"{k}: {metrics[k]}")
+ 
+-
+ if __name__ == "__main__":
+     main()
+-
+-

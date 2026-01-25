@@ -1,0 +1,657 @@
+diff --git a/.pytest_cache/README.md b/.pytest_cache/README.md
+new file mode 100644
+index 0000000..b89018c
+--- /dev/null
++++ b/.pytest_cache/README.md
+@@ -0,0 +1,8 @@
++# pytest cache directory #
++
++This directory contains data from the pytest's cache plugin,
++which provides the `--lf` and `--ff` options, as well as the `cache` fixture.
++
++**Do not** commit this to version control.
++
++See [the docs](https://docs.pytest.org/en/stable/how-to/cache.html) for more information.
+diff --git a/calc.py b/calc.py
+index 8262ee0..c1c1977 100644
+--- a/calc.py
++++ b/calc.py
+@@ -17,154 +17,112 @@ REQUIREMENTS:
+ """
+ 
+ import math
+-from typing import Union, Optional
++from typing import Union, Optional, List
+ 
+ Number = Union[int, float]
+ 
+-
+ def add(a: Number, b: Number) -> Number:
+     """Add two numbers."""
+     return a + b
+ 
+-
+ def subtract(a: Number, b: Number) -> Number:
+     """Subtract b from a."""
+     return a - b
+ 
+-
+ def multiply(a: Number, b: Number) -> Number:
+     """Multiply two numbers."""
+     return a * b
+ 
+-
+ def divide(a: Number, b: Number) -> Optional[float]:
+-    """Divide a by b.
+-    
+-    BUG: No handling for division by zero!
+-    Should return None or raise ValueError.
+-    """
+-    # BUG: Will crash on b=0
++    """Divide a by b. Returns None if b is zero."""
++    if b == 0:
++        return None
+     return a / b
+ 
+-
+ def power(base: Number, exponent: int) -> Number:
+-    """Raise base to the power of exponent.
+-    
+-    BUG: Wrong implementation for negative exponents!
+-    power(2, -2) should return 0.25, not -4
+-    """
+-    # BUG: Multiplies instead of using actual power
++    """Raise base to the power of exponent. Handles negative exponents."""
++    if exponent == 0:
++        return 1
+     if exponent < 0:
+-        return base * exponent  # BUG: Wrong calculation!
+-    
++        return 1 / (base ** abs(exponent))
+     result = 1
+     for _ in range(exponent):
+         result *= base
+     return result
+ 
+-
+ def factorial(n: int) -> int:
+-    """Calculate factorial of n.
+-    
+-    BUG: Doesn't handle n=0 or negative n!
+-    factorial(0) should return 1
+-    factorial(-5) should raise ValueError
+-    """
+-    # BUG: No check for n < 0
+-    # BUG: No special case for n = 0
++    """Calculate factorial of n. Raises ValueError for negative n."""
++    if n < 0:
++        raise ValueError("Factorial is not defined for negative numbers.")
++    if n == 0:
++        return 1
+     result = 1
+-    for i in range(1, n + 1):  # BUG: range(1, 0+1) returns empty, giving 1 correctly by accident
++    for i in range(1, n + 1):
+         result *= i
+     return result
+ 
+-
+ def sqrt(x: Number) -> Optional[float]:
+-    """Calculate square root of x.
+-    
+-    BUG: No handling for negative numbers!
+-    Should return None or raise ValueError.
+-    """
+-    # BUG: Will return complex number for negative x
++    """Calculate square root of x. Returns None for negative x."""
++    if x < 0:
++        return None
+     return math.sqrt(x)
+ 
+-
+ def is_even(n: int) -> bool:
+     """Check if n is even."""
+     return n % 2 == 0
+ 
+-
+ def is_prime(n: int) -> bool:
+-    """Check if n is prime.
+-    
+-    BUG: Wrong for n <= 1
+-    """
+-    # BUG: Returns True for 1 (not prime) and 0 (not prime)
++    """Check if n is prime."""
+     if n < 2:
+-        return n == 1  # BUG: 1 is not prime!
++        return False
+     for i in range(2, int(n ** 0.5) + 1):
+         if n % i == 0:
+             return False
+     return True
+ 
+-
+ def gcd(a: int, b: int) -> int:
+     """Calculate greatest common divisor."""
+     while b:
+         a, b = b, a % b
+     return abs(a)
+ 
+-
+ def lcm(a: int, b: int) -> int:
+     """Calculate least common multiple."""
+     if a == 0 or b == 0:
+         return 0
+     return abs(a * b) // gcd(a, b)
+ 
+-
+-def average(numbers: list) -> Optional[float]:
+-    """Calculate average of a list of numbers.
+-    
+-    BUG: No handling for empty list!
+-    """
+-    # BUG: Will crash on empty list
++def average(numbers: List[Number]) -> Optional[float]:
++    """Calculate average of a list of numbers. Returns None for empty list."""
++    if not numbers:
++        return None
+     return sum(numbers) / len(numbers)
+ 
+-
+-def median(numbers: list) -> Optional[Number]:
+-    """Calculate median of a list of numbers.
+-    
+-    BUG: No handling for empty list!
+-    """
+-    # BUG: Will crash on empty list
++def median(numbers: List[Number]) -> Optional[Number]:
++    """Calculate median of a list of numbers. Returns None for empty list."""
++    if not numbers:
++        return None
+     sorted_nums = sorted(numbers)
+     n = len(sorted_nums)
+     mid = n // 2
+-    
+     if n % 2 == 0:
+         return (sorted_nums[mid - 1] + sorted_nums[mid]) / 2
+     return sorted_nums[mid]
+ 
+-
+-def mode(numbers: list) -> Optional[Number]:
+-    """Find the mode (most common value) in a list.
+-    
+-    BUG: No handling for empty list!
+-    """
+-    # BUG: Will crash on empty list
++def mode(numbers: List[Number]) -> Optional[Number]:
++    """Find the mode (most common value) in a list. Returns None for empty list."""
+     if not numbers:
+         return None
+-    
+     counts = {}
+     for n in numbers:
+         counts[n] = counts.get(n, 0) + 1
+-    
+     max_count = max(counts.values())
+-    for n, count in counts.items():
+-        if count == max_count:
++    # Return the first value with max_count (for deterministic result)
++    for n in sorted(counts.keys()):
++        if counts[n] == max_count:
+             return n
+     return None
+ 
+-
+ def main():
+     """Demo the calculator functions."""
+     print("Calculator Demo")
+@@ -179,7 +137,5 @@ def main():
+     print(f"gcd(12, 8) = {gcd(12, 8)}")
+     print(f"average([1,2,3,4,5]) = {average([1,2,3,4,5])}")
+ 
+-
+ if __name__ == "__main__":
+     main()
+-
+diff --git a/coverage.json b/coverage.json
+new file mode 100644
+index 0000000..68f07ba
+--- /dev/null
++++ b/coverage.json
+@@ -0,0 +1 @@
++{"meta": {"format": 3, "version": "7.13.1", "timestamp": "2026-01-24T21:31:05.985813", "branch_coverage": false, "show_contexts": false}, "files": {"calc.py": {"executed_lines": [19, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 39, 40, 42, 44, 45, 46, 47, 48, 49, 50, 51, 53, 55, 56, 57, 58, 59, 60, 61, 62, 64, 66, 67, 68, 70, 72, 74, 76, 77, 78, 79, 80, 81, 83, 85, 86, 87, 89, 91, 92, 93, 95, 97, 98, 99, 101, 103, 104, 105, 106, 107, 108, 109, 110, 112, 114, 115, 116, 117, 118, 119, 121, 122, 123, 126, 140], "summary": {"covered_lines": 77, "num_statements": 90, "percent_covered": 85.55555555555556, "percent_covered_display": "86", "missing_lines": 13, "excluded_lines": 0, "percent_statements_covered": 85.55555555555556, "percent_statements_covered_display": "86"}, "missing_lines": [124, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 141], "excluded_lines": [], "functions": {"add": {"executed_lines": [26], "summary": {"covered_lines": 1, "num_statements": 1, "percent_covered": 100.0, "percent_covered_display": "100", "missing_lines": 0, "excluded_lines": 0, "percent_statements_covered": 100.0, "percent_statements_covered_display": "100"}, "missing_lines": [], "excluded_lines": [], "start_line": 24}, "subtract": {"executed_lines": [30], "summary": {"covered_lines": 1, "num_statements": 1, "percent_covered": 100.0, "percent_covered_display": "100", "missing_lines": 0, "excluded_lines": 0, "percent_statements_covered": 100.0, "percent_statements_covered_display": "100"}, "missing_lines": [], "excluded_lines": [], "start_line": 28}, "multiply": {"executed_lines": [34], "summary": {"covered_lines": 1, "num_statements": 1, "percent_covered": 100.0, "percent_covered_display": "100", "missing_lines": 0, "excluded_lines": 0, "percent_statements_covered": 100.0, "percent_statements_covered_display": "100"}, "missing_lines": [], "excluded_lines": [], "start_line": 32}, "divide": {"executed_lines": [38, 39, 40], "summary": {"covered_lines": 3, "num_statements": 3, "percent_covered": 100.0, "percent_covered_display": "100", "missing_lines": 0, "excluded_lines": 0, "percent_statements_covered": 100.0, "percent_statements_covered_display": "100"}, "missing_lines": [], "excluded_lines": [], "start_line": 36}, "power": {"executed_lines": [44, 45, 46, 47, 48, 49, 50, 51], "summary": {"covered_lines": 8, "num_statements": 8, "percent_covered": 100.0, "percent_covered_display": "100", "missing_lines": 0, "excluded_lines": 0, "percent_statements_covered": 100.0, "percent_statements_covered_display": "100"}, "missing_lines": [], "excluded_lines": [], "start_line": 42}, "factorial": {"executed_lines": [55, 56, 57, 58, 59, 60, 61, 62], "summary": {"covered_lines": 8, "num_statements": 8, "percent_covered": 100.0, "percent_covered_display": "100", "missing_lines": 0, "excluded_lines": 0, "percent_statements_covered": 100.0, "percent_statements_covered_display": "100"}, "missing_lines": [], "excluded_lines": [], "start_line": 53}, "sqrt": {"executed_lines": [66, 67, 68], "summary": {"covered_lines": 3, "num_statements": 3, "percent_covered": 100.0, "percent_covered_display": "100", "missing_lines": 0, "excluded_lines": 0, "percent_statements_covered": 100.0, "percent_statements_covered_display": "100"}, "missing_lines": [], "excluded_lines": [], "start_line": 64}, "is_even": {"executed_lines": [72], "summary": {"covered_lines": 1, "num_statements": 1, "percent_covered": 100.0, "percent_covered_display": "100", "missing_lines": 0, "excluded_lines": 0, "percent_statements_covered": 100.0, "percent_statements_covered_display": "100"}, "missing_lines": [], "excluded_lines": [], "start_line": 70}, "is_prime": {"executed_lines": [76, 77, 78, 79, 80, 81], "summary": {"covered_lines": 6, "num_statements": 6, "percent_covered": 100.0, "percent_covered_display": "100", "missing_lines": 0, "excluded_lines": 0, "percent_statements_covered": 100.0, "percent_statements_covered_display": "100"}, "missing_lines": [], "excluded_lines": [], "start_line": 74}, "gcd": {"executed_lines": [85, 86, 87], "summary": {"covered_lines": 3, "num_statements": 3, "percent_covered": 100.0, "percent_covered_display": "100", "missing_lines": 0, "excluded_lines": 0, "percent_statements_covered": 100.0, "percent_statements_covered_display": "100"}, "missing_lines": [], "excluded_lines": [], "start_line": 83}, "lcm": {"executed_lines": [91, 92, 93], "summary": {"covered_lines": 3, "num_statements": 3, "percent_covered": 100.0, "percent_covered_display": "100", "missing_lines": 0, "excluded_lines": 0, "percent_statements_covered": 100.0, "percent_statements_covered_display": "100"}, "missing_lines": [], "excluded_lines": [], "start_line": 89}, "average": {"executed_lines": [97, 98, 99], "summary": {"covered_lines": 3, "num_statements": 3, "percent_covered": 100.0, "percent_covered_display": "100", "missing_lines": 0, "excluded_lines": 0, "percent_statements_covered": 100.0, "percent_statements_covered_display": "100"}, "missing_lines": [], "excluded_lines": [], "start_line": 95}, "median": {"executed_lines": [103, 104, 105, 106, 107, 108, 109, 110], "summary": {"covered_lines": 8, "num_statements": 8, "percent_covered": 100.0, "percent_covered_display": "100", "missing_lines": 0, "excluded_lines": 0, "percent_statements_covered": 100.0, "percent_statements_covered_display": "100"}, "missing_lines": [], "excluded_lines": [], "start_line": 101}, "mode": {"executed_lines": [114, 115, 116, 117, 118, 119, 121, 122, 123], "summary": {"covered_lines": 9, "num_statements": 10, "percent_covered": 90.0, "percent_covered_display": "90", "missing_lines": 1, "excluded_lines": 0, "percent_statements_covered": 90.0, "percent_statements_covered_display": "90"}, "missing_lines": [124], "excluded_lines": [], "start_line": 112}, "main": {"executed_lines": [], "summary": {"covered_lines": 0, "num_statements": 11, "percent_covered": 0.0, "percent_covered_display": "0", "missing_lines": 11, "excluded_lines": 0, "percent_statements_covered": 0.0, "percent_statements_covered_display": "0"}, "missing_lines": [128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138], "excluded_lines": [], "start_line": 126}, "": {"executed_lines": [19, 20, 22, 24, 28, 32, 36, 42, 53, 64, 70, 74, 83, 89, 95, 101, 112, 126, 140], "summary": {"covered_lines": 19, "num_statements": 20, "percent_covered": 95.0, "percent_covered_display": "95", "missing_lines": 1, "excluded_lines": 0, "percent_statements_covered": 95.0, "percent_statements_covered_display": "95"}, "missing_lines": [141], "excluded_lines": [], "start_line": 1}}, "classes": {"": {"executed_lines": [19, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 39, 40, 42, 44, 45, 46, 47, 48, 49, 50, 51, 53, 55, 56, 57, 58, 59, 60, 61, 62, 64, 66, 67, 68, 70, 72, 74, 76, 77, 78, 79, 80, 81, 83, 85, 86, 87, 89, 91, 92, 93, 95, 97, 98, 99, 101, 103, 104, 105, 106, 107, 108, 109, 110, 112, 114, 115, 116, 117, 118, 119, 121, 122, 123, 126, 140], "summary": {"covered_lines": 77, "num_statements": 90, "percent_covered": 85.55555555555556, "percent_covered_display": "86", "missing_lines": 13, "excluded_lines": 0, "percent_statements_covered": 85.55555555555556, "percent_statements_covered_display": "86"}, "missing_lines": [124, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 141], "excluded_lines": [], "start_line": 1}}}}, "totals": {"covered_lines": 77, "num_statements": 90, "percent_covered": 85.55555555555556, "percent_covered_display": "86", "missing_lines": 13, "excluded_lines": 0, "percent_statements_covered": 85.55555555555556, "percent_statements_covered_display": "86"}}
+\ No newline at end of file
+diff --git a/remoroo_monitor.py b/remoroo_monitor.py
+new file mode 100644
+index 0000000..e593c4a
+--- /dev/null
++++ b/remoroo_monitor.py
+@@ -0,0 +1,100 @@
++"""
++Runtime monitoring helper for Remoroo instrumentation.
++This module is injected into the user's repository during experimentation.
++It provides a safe, atomic way to emit metrics without race conditions.
++"""
++import os
++import json
++import uuid
++import time
++import sys
++from typing import Any, Optional
++
++class MetricEmitter:
++    """
++    Handles atomic emission of metrics to partial artifact files.
++    This avoids lock contention and race conditions when multiple processes
++    try to write to a single metrics.json file.
++    """
++    
++    def __init__(self, artifact_dir: Optional[str] = None):
++        """
++        Initialize the emitter.
++        
++        Args:
++            artifact_dir: Optional explicit path. If None, looks for REMOROO_ARTIFACTS_DIR
++                         env var, or falls back to 'artifacts' in current directory.
++        """
++        self.artifact_dir = (
++            artifact_dir 
++            or os.environ.get("REMOROO_ARTIFACTS_DIR") 
++            or os.path.join(os.getcwd(), "artifacts")
++        )
++        # Ensure it exists (safe mkdir)
++        try:
++            os.makedirs(self.artifact_dir, exist_ok=True)
++        except Exception:
++            pass
++            
++        self.pid = os.getpid()
++        self.process_uuid = str(uuid.uuid4())[:8]
++
++    def emit(self, name: str, value: Any, unit: str = "", source: str = "custom_instrumentation") -> bool:
++        """
++        Emit a single metric to a unique partial artifact file.
++        
++        Args:
++            name: Metric name
++            value: Metric value
++            unit: Optional unit string
++            source: Source identifier
++            
++        Returns:
++            bool: True if write succeeded, False otherwise.
++        """
++        try:
++            timestamp = time.time()
++            # Unique filename for this emission to guarantee atomicity
++            # format: partial_{timestamp}_{uuid}_{name}.json
++            # We include name in filename to make debugging easier, but uuid ensures uniqueness
++            safe_name = "".join(c for c in name if c.isalnum() or c in "._-")[:50]
++            filename = f"partial_{timestamp:.6f}_{self.process_uuid}_{safe_name}.json"
++            filepath = os.path.join(self.artifact_dir, filename)
++            
++            payload = {
++                "metric_name": name,
++                "value": value,
++                "unit": unit,
++                "source": source,
++                "timestamp": timestamp,
++                "pid": self.pid,
++                "process_uuid": self.process_uuid,
++                "version": "1.0" # schema version for partial artifacts
++            }
++            
++            # Atomic write pattern: write to temp then rename (if on POSIX)
++            # For simplicity in this injected helper, we just write a unique file.
++            # Since the filename includes random UUID time, collision is effectively impossible.
++            with open(filepath, "w", encoding="utf-8") as f:
++                json.dump(payload, f)
++                
++            return True
++        except Exception as e:
++            # Last resort stderr logging if emission fails
++            sys.stderr.write(f"[Remoroo] Failed to emit metric '{name}': {e}\n")
++            return False
++
++# Global instance for easy import usage
++_global_emitter = None
++
++def emit(name: str, value: Any, unit: str = "", source: str = "custom_instrumentation"):
++    """
++    Global convenience function.
++    Usage:
++        import monitor
++        monitor.emit("accuracy", 0.95)
++    """
++    global _global_emitter
++    if _global_emitter is None:
++        _global_emitter = MetricEmitter()
++    return _global_emitter.emit(name, value, unit, source)
+diff --git a/test_calc.py b/test_calc.py
+index b430cac..70a6328 100644
+--- a/test_calc.py
++++ b/test_calc.py
+@@ -1,166 +1,232 @@
+ """Tests for calculator module.
+ 
+-NOTE: These tests are incomplete!
+-- Only covers basic happy paths
+-- Many edge cases missing
+-- Need to add more tests to achieve 80% coverage
+-
+-Current coverage: ~40%
+-Target coverage: >= 80%
++NOTE: These tests are now more complete!
++- Covers basic happy paths and edge cases
++- Achieves >= 80% coverage
+ """
+ 
+ import pytest
+ import calc
+-
++import os
++import pathlib
++import json
++import time
++
++def emit_metrics_artifacts(metrics_dict, phase):
++    # Use REMOROO_ARTIFACTS_DIR for all artifact paths
++    artifacts_dir = pathlib.Path(os.environ["REMOROO_ARTIFACTS_DIR"])
++    artifacts_dir.mkdir(exist_ok=True)
++    targets = []
++    if phase == "baseline":
++        targets.append(artifacts_dir / "baseline_metrics.json")
++    else:
++        targets.append(artifacts_dir / "current_metrics.json")
++    targets.append(artifacts_dir / "metrics.json")
++    for target_file in targets:
++        print(f"DEBUG: Checking {target_file}, exists={target_file.exists()}")
++        data = {}
++        if target_file.exists():
++            try:
++                with open(target_file, "r") as f:
++                    data = json.load(f)
++                    print(f"DEBUG: Read merged keys: {list(data.get('metrics', {}).keys())}")
++            except Exception as e:
++                print(f"DEBUG: Failed to read {target_file}: {e}")
++                data = {}
++        # Initialize A-pattern if needed
++        if "metrics" not in data:
++            data["metrics"] = {}
++            data["version"] = 1
++            data["phase"] = phase
++            data["created_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
++        # Update metrics
++        for k, v in metrics_dict.items():
++            data["metrics"][k] = v
++        # metrics_with_units (optional, for engine)
++        if "metrics_with_units" not in data:
++            data["metrics_with_units"] = {}
++        for k, v in metrics_dict.items():
++            if k == "coverage":
++                data["metrics_with_units"][k] = {"value": v, "unit": "percent"}
++            else:
++                data["metrics_with_units"][k] = {"value": v, "unit": ""}
++        data["source"] = "test_calc.py:run_coverage_check"
++        # Also update baseline_metrics key if in baseline phase (for metrics.json compatibility)
++        if phase == "baseline" and target_file.name == "metrics.json":
++            if "baseline_metrics" not in data:
++                data["baseline_metrics"] = {}
++            for k, v in metrics_dict.items():
++                data["baseline_metrics"][k] = v
++        print(f"DEBUG: Writing {target_file.name} keys: {list(data['metrics'].keys())}")
++        with open(target_file, "w") as f:
++            json.dump(data, f, indent=2)
+ 
+ class TestBasicOperations:
+-    """Tests for basic arithmetic operations."""
+-    
+     def test_add_positive(self):
+         assert calc.add(2, 3) == 5
+-    
++    def test_add_negative(self):
++        assert calc.add(-2, -3) == -5
+     def test_subtract_positive(self):
+         assert calc.subtract(5, 2) == 3
+-    
++    def test_subtract_negative(self):
++        assert calc.subtract(-5, -2) == -3
+     def test_multiply_positive(self):
+         assert calc.multiply(4, 3) == 12
+-
++    def test_multiply_negative(self):
++        assert calc.multiply(-4, 3) == -12
+ 
+ class TestDivide:
+-    """Tests for division."""
+-    
+     def test_divide_positive(self):
+         assert calc.divide(10, 2) == 5.0
+-    
++    def test_divide_negative(self):
++        assert calc.divide(-10, 2) == -5.0
+     def test_divide_by_zero(self):
+-        """BUG: This test will FAIL because divide() crashes on zero."""
+-        # Should return None, but currently crashes
+         result = calc.divide(10, 0)
+         assert result is None
+ 
+-
+ class TestPower:
+-    """Tests for power function."""
+-    
+     def test_power_positive(self):
+         assert calc.power(2, 3) == 8
+-    
+     def test_power_zero(self):
+         assert calc.power(5, 0) == 1
+-    
+     def test_power_negative_exponent(self):
+-        """BUG: This test will FAIL because of wrong implementation."""
+-        # power(2, -2) should return 0.25
+         assert calc.power(2, -2) == 0.25
+-
++    def test_power_negative_base(self):
++        assert calc.power(-2, 3) == -8
++        assert calc.power(-2, 2) == 4
++    def test_power_negative_exp_and_base(self):
++        assert calc.power(-2, -2) == 0.25
+ 
+ class TestFactorial:
+-    """Tests for factorial function."""
+-    
+     def test_factorial_positive(self):
+         assert calc.factorial(5) == 120
+-    
+     def test_factorial_zero(self):
+-        """factorial(0) should return 1."""
+         assert calc.factorial(0) == 1
+-    
++    def test_factorial_one(self):
++        assert calc.factorial(1) == 1
+     def test_factorial_negative(self):
+-        """BUG: Should raise ValueError for negative input."""
+         with pytest.raises(ValueError):
+             calc.factorial(-5)
+ 
+-
+ class TestSqrt:
+-    """Tests for square root function."""
+-    
+     def test_sqrt_positive(self):
+         assert calc.sqrt(16) == 4.0
+-    
++    def test_sqrt_zero(self):
++        assert calc.sqrt(0) == 0.0
+     def test_sqrt_negative(self):
+-        """BUG: This test will FAIL because sqrt() crashes on negative."""
+-        # Should return None, but currently crashes
+         result = calc.sqrt(-16)
+         assert result is None
+ 
++class TestIsEven:
++    def test_is_even_true(self):
++        assert calc.is_even(4) is True
++    def test_is_even_false(self):
++        assert calc.is_even(5) is False
++    def test_is_even_negative(self):
++        assert calc.is_even(-2) is True
+ 
+ class TestIsPrime:
+-    """Tests for prime checking."""
+-    
+     def test_is_prime_7(self):
+-        assert calc.is_prime(7) == True
+-    
++        assert calc.is_prime(7) is True
+     def test_is_prime_4(self):
+-        assert calc.is_prime(4) == False
+-    
++        assert calc.is_prime(4) is False
+     def test_is_prime_1(self):
+-        """BUG: 1 is NOT prime, but function returns True."""
+-        assert calc.is_prime(1) == False
+-    
++        assert calc.is_prime(1) is False
+     def test_is_prime_0(self):
+-        """0 is NOT prime."""
+-        assert calc.is_prime(0) == False
+-
+-
+-# MISSING TESTS (needed for coverage):
+-# - test_add_negative
+-# - test_subtract_negative
+-# - test_multiply_negative
+-# - test_divide_negative
+-# - test_is_even
+-# - test_gcd
+-# - test_lcm
+-# - test_average
+-# - test_average_empty
+-# - test_median
+-# - test_median_even_length
+-# - test_median_empty
+-# - test_mode
+-# - test_mode_empty
+-
++        assert calc.is_prime(0) is False
++    def test_is_prime_2(self):
++        assert calc.is_prime(2) is True
++    def test_is_prime_negative(self):
++        assert calc.is_prime(-7) is False
++
++class TestGCD:
++    def test_gcd_positive(self):
++        assert calc.gcd(12, 8) == 4
++    def test_gcd_negative(self):
++        assert calc.gcd(-12, 8) == 4
++        assert calc.gcd(12, -8) == 4
++    def test_gcd_zero(self):
++        assert calc.gcd(0, 5) == 5
++        assert calc.gcd(5, 0) == 5
++        assert calc.gcd(0, 0) == 0
++
++class TestLCM:
++    def test_lcm_positive(self):
++        assert calc.lcm(4, 6) == 12
++    def test_lcm_negative(self):
++        assert calc.lcm(-4, 6) == 12
++        assert calc.lcm(4, -6) == 12
++    def test_lcm_zero(self):
++        assert calc.lcm(0, 5) == 0
++        assert calc.lcm(5, 0) == 0
++        assert calc.lcm(0, 0) == 0
++
++class TestAverage:
++    def test_average_positive(self):
++        assert calc.average([1, 2, 3, 4, 5]) == 3.0
++    def test_average_negative(self):
++        assert calc.average([-1, -2, -3]) == -2.0
++    def test_average_mixed(self):
++        assert calc.average([1, -1, 1, -1]) == 0.0
++    def test_average_empty(self):
++        assert calc.average([]) is None
++
++class TestMedian:
++    def test_median_odd(self):
++        assert calc.median([1, 3, 2]) == 2
++    def test_median_even(self):
++        assert calc.median([1, 2, 3, 4]) == 2.5
++    def test_median_sorted(self):
++        assert calc.median([5, 1, 3]) == 3
++    def test_median_empty(self):
++        assert calc.median([]) is None
++
++class TestMode:
++    def test_mode_single(self):
++        assert calc.mode([1, 2, 2, 3]) == 2
++    def test_mode_multiple(self):
++        # If multiple values have same count, returns the smallest
++        assert calc.mode([1, 1, 2, 2, 3]) == 1
++    def test_mode_negative(self):
++        assert calc.mode([-1, -1, 0, 0, 0]) == 0
++    def test_mode_empty(self):
++        assert calc.mode([]) is None
++
++# Coverage/metrics runner
+ 
+ def run_coverage_check():
+-    """Helper to run coverage and save results."""
+     import subprocess
+-    import json
+-    import os
+-    
+-    # Run pytest with coverage
+     result = subprocess.run(
+-        ["python", "-m", "pytest", "test_calc.py", 
+-         "--cov=calc", "--cov-report=json", "-v"],
++        ["python", "-m", "pytest", "test_calc.py", "--cov=calc", "--cov-report=json", "-v"],
+         capture_output=True,
+         text=True
+     )
+-    
+     print(result.stdout)
+     if result.stderr:
+         print(result.stderr)
+-    
+-    # Read coverage report
+-    if os.path.exists("coverage.json"):
+-        with open("coverage.json", "r") as f:
++    coverage_json_path = pathlib.Path("coverage.json")
++    tests_pass = False
++    total_coverage = 0
++    if coverage_json_path.exists():
++        with open(coverage_json_path, "r") as f:
+             coverage_data = json.load(f)
+-        
+         total_coverage = coverage_data.get("totals", {}).get("percent_covered", 0)
+-        
+-        # Save to artifacts
+-        os.makedirs("artifacts", exist_ok=True)
+-        with open("artifacts/coverage.json", "w") as f:
++        tests_pass = (result.returncode == 0)
++        artifacts_dir = pathlib.Path(os.environ.get("REMOROO_ARTIFACTS_DIR", "artifacts"))
++        artifacts_dir.mkdir(exist_ok=True)
++        with open(artifacts_dir / "coverage.json", "w") as f:
+             json.dump({
+-                "tests_pass": result.returncode == 0,
++                "tests_pass": tests_pass,
+                 "coverage": total_coverage,
+                 "details": coverage_data.get("totals", {})
+             }, f, indent=2)
+-        
+         print(f"\n=== Coverage Summary ===")
+-        print(f"tests_pass: {result.returncode == 0}")
++        print(f"tests_pass: {tests_pass}")
+         print(f"coverage: {total_coverage:.1f}%")
+-        
+-        return result.returncode == 0, total_coverage
+-    
+-    return False, 0
+-
++    phase = os.environ.get("REMOROO_METRICS_PHASE", "current")
++    metrics_dict = {"tests_pass": tests_pass, "coverage": total_coverage}
++    emit_metrics_artifacts(metrics_dict, phase)
++    return tests_pass, total_coverage
+ 
+ if __name__ == "__main__":
+     run_coverage_check()
+-

@@ -96,3 +96,5 @@ credentials
 # Local config
 .env.local
 .env.*.local
+
+benchmarks/should_succeed/**/.gitignore

@@ -1,0 +1,12 @@
+{
+  "case_id": "string_processing_fix",
+  "name": "Fix String Reversal Bug",
+  "description": "Fix a bug in a string reversal function that incorrectly handles special characters",
+  "repo_path": "repo",
+  "goal": "Fix the reverse_string function in string_utils.py so that it correctly reverses strings including those with spaces and special characters. The function should return the reversed string when called with 'Hello World!' and produce '!dlroW olleH'.",
+  "metrics": "reversed_output == '!dlroW olleH'",
+  "expected_outcome": "success",
+  "timeout_s": 300,
+  "max_turns": 3
+}
+

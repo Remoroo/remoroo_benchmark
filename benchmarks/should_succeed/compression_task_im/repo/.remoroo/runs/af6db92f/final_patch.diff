@@ -1,0 +1,105 @@
+diff --git a/compressor.py b/compressor.py
+new file mode 100644
+index 0000000..f3ac83b
+--- /dev/null
++++ b/compressor.py
+@@ -0,0 +1,99 @@
++import argparse
++import os
++import shutil
++import json
++
++def compress_file(input_path, output_path):
++    """
++    Compress the input file to 50% of its original size with no loss, if possible.
++    If not possible, copy the file as is (no lossless algorithm can guarantee 50% for all files).
++    """
++    original_size = os.path.getsize(input_path)
++    # Read the file content
++    with open(input_path, 'rb') as f:
++        data = f.read()
++
++    # Try compressing with zlib (lossless)
++    import zlib
++    compressed = zlib.compress(data, level=9)
++    compressed_size = len(compressed)
++
++    # If zlib achieves <= 50%, use it
++    if compressed_size <= original_size // 2:
++        with open(output_path, 'wb') as f:
++            f.write(compressed)
++        used_method = 'zlib'
++        final_size = compressed_size
++    else:
++        # Try bz2
++        import bz2
++        compressed_bz2 = bz2.compress(data, compresslevel=9)
++        compressed_bz2_size = len(compressed_bz2)
++        if compressed_bz2_size <= original_size // 2:
++            with open(output_path, 'wb') as f:
++                f.write(compressed_bz2)
++            used_method = 'bz2'
++            final_size = compressed_bz2_size
++        else:
++            # Try lzma
++            import lzma
++            compressed_lzma = lzma.compress(data, preset=9)
++            compressed_lzma_size = len(compressed_lzma)
++            if compressed_lzma_size <= original_size // 2:
++                with open(output_path, 'wb') as f:
++                    f.write(compressed_lzma)
++                used_method = 'lzma'
++                final_size = compressed_lzma_size
++            else:
++                # Not possible to losslessly compress to 50% for this file
++                # Copy the file as is (no loss)
++                shutil.copyfile(input_path, output_path)
++                used_method = 'none'
++                final_size = original_size
++
++    return {
++        'original_size': original_size,
++        'compressed_size': final_size,
++        'compression_ratio': final_size / original_size if original_size > 0 else 1.0,
++        'method': used_method
++    }
++
++def main():
++    parser = argparse.ArgumentParser(description='Compress a file to 50% of its original size with no loss, if possible.')
++    parser.add_argument('--input', required=True, help='Input file path')
++    parser.add_argument('--output', required=True, help='Output file path')
++    args = parser.parse_args()
++
++    metrics = compress_file(args.input, args.output)
++
++    # Save metrics
++    os.makedirs('artifacts', exist_ok=True)
++    metrics_path = os.path.join('artifacts', 'metrics.json')
++    with open(metrics_path, 'w') as f:
++        json.dump({'compression_ratio': metrics['compression_ratio']}, f, indent=2)
++
++    # Save metrics provenance
++    provenance = {
++        'compression_ratio': {
++            'source': 'compressor.py:compress_file',
++            'inputs': {
++                'input_path': args.input,
++                'output_path': args.output
++            },
++            'unit': 'ratio',
++            'method': metrics['method'],
++            'original_size': metrics['original_size'],
++            'compressed_size': metrics['compressed_size']
++        }
++    }
++    provenance_path = os.path.join('artifacts', 'metrics_provenance.json')
++    with open(provenance_path, 'w') as f:
++        json.dump(provenance, f, indent=2)
++
++    print(f"compression_ratio: {metrics['compression_ratio']}")
++    print(f"Compression method used: {metrics['method']}")
++    if metrics['method'] == 'none':
++        print("Warning: Could not compress to 50% of original size without loss.")
++
++if __name__ == '__main__':
++    main()
