@@ -103,13 +103,36 @@ def run_benchmark(case_path: Path, verbose: bool = False, skip_existing: bool = 
         elapsed = (datetime.now() - start_time).total_seconds()
         
         output = "".join(full_output)
+        output = "".join(full_output)
+        
+        # New Rich-based parsing
         decision = "UNKNOWN"
-        if "Run completed successfully" in output:
+        # We look for the "Run Summary" box content
+        # │ SUCCESS                                                                          │
+        # │ INTERRUPTED                                                                      │
+        
+        # Remove ANSI codes for easier regex (optional, but robust)
+        clean_output = re.sub(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])', '', output)
+        
+        if "│ SUCCESS" in clean_output:
             decision = "SUCCESS"
-        elif "Run finished with outcome" in output:
-            for line in output.splitlines():
-                if "Run finished with outcome:" in line:
-                    decision = line.split(":")[-1].strip()
+        elif "│ INTERRUPTED" in clean_output or "🛑 Experiment Paused" in clean_output:
+            decision = "ABORT" # Mapped to UNKNOWN or preserved as ABORT? 
+            # bench_runner expects UNKNOWN for ABORT based on existing logic, but let's see.
+            # Original code: if decision == "ABORT": decision = "UNKNOWN"
+            # So "ABORT" -> "UNKNOWN" effectively.
+        elif "│ FAILURE" in clean_output or "│ FAIL" in clean_output:
+             decision = "FAIL"
+             
+        # Fallback to old text just in case (optional, but safe)
+        if decision == "UNKNOWN":
+             if "Run completed successfully" in clean_output:
+                 decision = "SUCCESS"
+             elif "Run finished with outcome" in clean_output:
+                 for line in clean_output.splitlines():
+                     if "Run finished with outcome:" in line:
+                         decision = line.split(":")[-1].strip()
+
         if decision == "ABORT":
             decision = "UNKNOWN"
         
