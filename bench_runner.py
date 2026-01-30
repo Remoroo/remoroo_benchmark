@@ -67,11 +67,29 @@ def run_benchmark(case_path: Path, verbose: bool = False, skip_existing: bool = 
                 "report_file": report_file
             }
     
+    # SAFEGUARD: Copy repo to temporary directory to prevent in-place patching by CLI
+    import tempfile
+    import shutil
+    
+    # Create temp dir for this run
+    temp_dir_obj = tempfile.TemporaryDirectory(prefix=f"remoroo_bench_{case.get('case_id')}_")
+    temp_repo_path = Path(temp_dir_obj.name) / "repo"
+    
+    # Copy repo
+    if verbose:
+        print(f"   📂 Cloning benchmark repo to ephemeral dir: {temp_repo_path}")
+    
+    # Ignore remoroo artifacts during copy
+    shutil.copytree(repo_path, temp_repo_path, ignore=shutil.ignore_patterns(".remoroo", ".git", "venv", "__pycache__"))
+    
+    # Update execution path
+    exec_repo_path = temp_repo_path
+    
     # 2. Construct Remoroo CLI command
     cmd = [
         "remoroo", "run",
         "--local",
-        "--repo", str(repo_path),
+        "--repo", str(exec_repo_path),
         "--goal", goal,
         "--metrics", metrics_req,
         "--yes"
