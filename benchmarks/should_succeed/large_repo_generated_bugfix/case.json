@@ -1,0 +1,11 @@
+{
+  "case_id": "large_repo_generated_bugfix",
+  "name": "Large Repo (generated ~1000 files): bugfix + measure metrics",
+  "description": "This benchmark includes a generator that materializes a ~1000-file repository inside ./repo. The system must navigate the large repo, fix real bugs in shared library code, and measure metrics via instrumentation (multi-command).",
+  "repo_path": "repo",
+  "goal": "Fix the real bugs in domain/alpha/compute.py:sum_numbers and domain/beta/stats.py:mean_numbers",
+  "metrics": "alpha_sum == 10, beta_mean == 2.5",
+  "expected_outcome": "success",
+  "timeout_s": 900,
+  "max_turns": 8
+}

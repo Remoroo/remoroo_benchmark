@@ -53,25 +53,25 @@ def draw_figures():
 def check_winner():
     """Check if there's a winner."""
     global winner, game_over
-    
+    # Check rows
     for row in range(BOARD_ROWS):
         if board[row][0] == board[row][1] == board[row][2] and board[row][0] is not None:
             winner = board[row][0]
             game_over = True
             return
-    
+    # Check columns
     for col in range(BOARD_COLS):
         if board[0][col] == board[1][col] == board[2][col] and board[0][col] is not None:
             winner = board[0][col]
             game_over = True
             return
-    
+    # Check diagonal (top-left to bottom-right)
     if board[0][0] == board[1][1] == board[2][2] and board[0][0] is not None:
         winner = board[0][0]
         game_over = True
         return
-    
-    if board[0][2] == board[1][1] == board[2][1] and board[0][2] is not None:
+    # Check diagonal (top-right to bottom-left)
+    if board[0][2] == board[1][1] == board[2][0] and board[0][2] is not None:
         winner = board[0][2]
         game_over = True
         return
@@ -144,4 +144,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

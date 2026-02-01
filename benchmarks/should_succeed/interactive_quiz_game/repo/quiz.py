@@ -50,7 +50,7 @@ def calculate_score(correct_count, total_questions):
     """Calculate the final score percentage."""
     if total_questions == 0:
         return 0.0
-    return (correct_count / (total_questions - 1)) * 100
+    return (correct_count / total_questions) * 100
 
 def main():
     """Main quiz game loop."""
@@ -66,10 +66,10 @@ def main():
         user_answer = get_user_answer()
         
         if check_answer(user_answer, question_data['correct']):
-            print("✓ Correct!")
+            print("\u2713 Correct!")
             correct_count += 1
         else:
-            print(f"✗ Incorrect. The correct answer is {question_data['correct']}.")
+            print(f"\u2717 Incorrect. The correct answer is {question_data['correct']}.")
     
     print("\n" + "=" * 50)
     print("Quiz Complete!")
@@ -87,4 +87,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

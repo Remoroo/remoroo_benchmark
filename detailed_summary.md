@@ -1,15 +1,15 @@
 # Remoroo Benchmark Suite - Detailed Performance Summary
 
-*Generated on January 25, 2026 at 14:08:47*
+*Generated on February 01, 2026 at 23:27:16*
 
 ## 🎯 Executive Summary
 
-**Overall Success Rate: 95.2%**
+**Overall Success Rate: 93.6%**
 
-- **Total Benchmarks**: 42
-- **Successful Runs**: 38
-- **Correct Outcomes**: 40
-- **Success Rate**: 95.2%
+- **Total Benchmarks**: 47
+- **Successful Runs**: 42
+- **Correct Outcomes**: 44
+- **Success Rate**: 93.6%
 
 The Remoroo Autonomous Experimentation Engine demonstrates exceptional performance across a comprehensive suite of real-world software engineering challenges, from simple bug fixes to complex multi-metric optimization tasks.
 
@@ -18,9 +18,9 @@ The Remoroo Autonomous Experimentation Engine demonstrates exceptional performan
 | Category | Total | Successful | Success Rate |
 | :--- | :---: | :---: | :---: |
 | Easy | 9 | 9 | 100.0% |
-| Medium | 1 | 1 | 100.0% |
+| Medium | 3 | 3 | 100.0% |
 | Hard | 18 | 16 | 88.9% |
-| Multi-Metric (Very Hard) | 14 | 12 | 85.7% |
+| Multi-Metric (Very Hard) | 17 | 14 | 82.4% |
 
 ## 🔬 Detailed Benchmark Results
 
@@ -145,6 +145,30 @@ The Remoroo Autonomous Experimentation Engine demonstrates exceptional performan
 **Status**: SUCCESS | **Outcome**: ✅ Correct
 
 **Complexity**: Max 5 turns, 600s timeout
+
+---
+
+#### ✅ Fix Interactive Quiz Game Bug
+
+**Description**: Fix a bug in an interactive command-line quiz game that prevents correct score calculation
+
+**Metrics**: `score_accuracy==1.0`
+
+**Status**: SUCCESS | **Outcome**: ✅ Correct
+
+**Complexity**: Max 5 turns, 300s timeout
+
+---
+
+#### ✅ Fix Tic-Tac-Toe Game Bug
+
+**Description**: Fix a bug in a pygame-based tic-tac-toe game that prevents proper win detection
+
+**Metrics**: `win_detection_accuracy==1.0`
+
+**Status**: SUCCESS | **Outcome**: ✅ Correct
+
+**Complexity**: Max 5 turns, 300s timeout
 
 ---
 
@@ -440,6 +464,18 @@ The Remoroo Autonomous Experimentation Engine demonstrates exceptional performan
 
 ---
 
+#### ✅ Large Repo (generated ~1000 files): bugfix + measure metrics
+
+**Description**: This benchmark includes a generator that materializes a ~1000-file repository inside ./repo. The system must navigate the large repo, fix real bugs in shared library code, and measure metrics via instrumentation (multi-command).
+
+**Metrics**: `alpha_sum == 10, beta_mean == 2.5`
+
+**Status**: SUCCESS | **Outcome**: ✅ Correct
+
+**Complexity**: Max 8 turns, 900s timeout
+
+---
+
 #### ✅ ML Training with Multiple Metrics
 
 **Description**: Train a classifier that must satisfy multiple constraints: accuracy >= 0.85, loss <= 0.5, and training time < 30 seconds
@@ -461,6 +497,18 @@ The Remoroo Autonomous Experimentation Engine demonstrates exceptional performan
 **Status**: SUCCESS | **Outcome**: ✅ Correct
 
 **Complexity**: Max 20 turns, 3600s timeout
+
+---
+
+#### ✅ MultiTest: Multi-command + Multi-metric + Multi-file (Deterministic)
+
+**Description**: Forces the system to (1) select and run multiple commands, (2) instrument multiple entrypoints to emit multiple metrics, and (3) patch multiple library files to satisfy correctness metrics deterministically.
+
+**Metrics**: `alpha_sum == 10, beta_mean == 2.5`
+
+**Status**: SUCCESS | **Outcome**: ✅ Correct
+
+**Complexity**: Max 6 turns, 600s timeout
 
 ---
 
@@ -524,6 +572,18 @@ The Remoroo Autonomous Experimentation Engine demonstrates exceptional performan
 
 ---
 
+#### ❓ Large Repo (generated ~1000 files): service+client bugfix + optimization + metrics
+
+**Description**: Generates a realistic layered codebase (~1000 python files) with two entrypoints (server bootstrap + client workload). Requires fixing a correctness bug and an efficiency bug, then measuring multi-metric success via instrumentation. Also stresses system diagram generation.
+
+**Metrics**: `correct_responses == 50, parse_calls == 1`
+
+**Status**: ITERATE | **Outcome**: ❌ Incorrect
+
+**Complexity**: Max 10 turns, 900s timeout
+
+---
+
 #### ⚠️ Large Repo Pipeline Optimization (Multi-file)
 
 **Description**: A larger Python codebase with an ETL-style pipeline that is correct but slow due to inefficient tokenization and feature building. Requires optimization across multiple modules.
@@ -540,7 +600,7 @@ The Remoroo Autonomous Experimentation Engine demonstrates exceptional performan
 
 ### Multi-Metric Benchmarks
 
-Successfully completed **12** complex multi-metric optimization tasks, demonstrating Remoroo's ability to balance competing constraints:
+Successfully completed **14** complex multi-metric optimization tasks, demonstrating Remoroo's ability to balance competing constraints:
 
 - ✅ **Slow Train With Streaming Logs**: code_runs == true, runtime_s >= 3.0
 - ✅ **baseline_hidden_metrics**: runtime_s <= 2.0, accuracy >= 0.92
@@ -560,7 +620,7 @@ Successfully completed **4** refactoring tasks, including:
 ## 🛠️ Technical Capabilities Demonstrated
 
 ### Bug Fixing
-**9** successful benchmarks
+**12** successful benchmarks
 
 - ✅ Fix Data Pipeline Aggregation Bug
 - ✅ Fix Cycle Detection in Directed Graph

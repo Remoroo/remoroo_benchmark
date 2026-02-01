@@ -5,7 +5,23 @@ import argparse
 from pathlib import Path
 from datetime import datetime
 import re
+import fnmatch
 from metrics import BenchmarkMetrics, save_leaderboard_data
+
+def _resolve_bench_root() -> Path:
+    """
+    Resolve benchmarks root robustly whether invoked from repo root
+    or from within the remoroo_benchmark/ directory.
+    """
+    file_candidate = Path(__file__).resolve().parent / "benchmarks"
+    if file_candidate.exists():
+        return file_candidate
+
+    cwd_candidate = Path("benchmarks")
+    if cwd_candidate.exists():
+        return cwd_candidate
+
+    return cwd_candidate
 
 def get_latest_report_outcome(repo_path: Path):
     """
@@ -20,19 +36,29 @@ def get_latest_report_outcome(repo_path: Path):
     if not run_dirs:
         return None, None
 
-    # Sort by modification time of the directory itself
-    latest_run = max(run_dirs, key=lambda d: d.stat().st_mtime)
-    report_path = latest_run / "final_report.md"
-
-    if not report_path.exists():
+    # Prefer the most recent *report file* mtime (more accurate than directory mtime).
+    report_candidates = []
+    for d in run_dirs:
+        p = d / "final_report.md"
+        if p.exists():
+            report_candidates.append(p)
+    if not report_candidates:
         return None, None
+
+    report_path = max(report_candidates, key=lambda p: p.stat().st_mtime)
 
     try:
         content = report_path.read_text()
-        # Look for ## ✅ Outcome: SUCCESS or ## ❌ Outcome: FAILED
-        match = re.search(r"## .* Outcome: (\w+)", content)
+        # Support both old and new formats:
+        # - "## ✅ Outcome: SUCCESS"
+        # - "## Outcome: SUCCESS"
+        match = re.search(r"^##\s*(?:.*?\s)?Outcome:\s*([A-Z_]+)\s*$", content, flags=re.MULTILINE)
         if match:
-            return match.group(1), str(report_path)
+            decision = match.group(1).strip().upper()
+            # Normalize historical variants
+            if decision in ("FAILED", "FAILURE"):
+                decision = "FAIL"
+            return decision, str(report_path)
     except Exception:
         pass
 
@@ -165,11 +191,9 @@ def get_benchmark_name(case_id: str, bench_root: Path) -> str:
             pass
     return case_id
 
-def update_readme(report: dict, readme_path: Path = Path("README.md")):
+def update_readme(report: dict, bench_root: Path, readme_path: Path):
     if not readme_path.exists():
         return
-
-    bench_root = Path("benchmarks")
     
     # Summary metrics
     summary_table = [
@@ -252,18 +276,33 @@ def main():
     parser = argparse.ArgumentParser(description="Remoroo Benchmark Runner")
     parser.add_argument("--include", type=str, default="*", help="Glob pattern to include benchmarks")
     parser.add_argument("--output", type=str, default="leaderboard.json", help="Output path for results")
-    parser.add_argument("--skip-existing", action="store_true", help="Skip runs that already have a final report")
+    # Default behavior: skip if a prior run report exists in repo/.remoroo/runs/*/.
+    # Use --rerun to force running again.
+    parser.add_argument("--rerun", action="store_true", help="Force rerun even if a final report exists")
     parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
     args = parser.parse_args()
 
-    bench_root = Path("benchmarks")
+    bench_root = _resolve_bench_root()
     all_results = []
+    skip_existing = not args.rerun
     
     # Discover benchmarks
-    # We look for all case.json files in subdirectories
-    for case_file in bench_root.glob(f"**/{args.include}/case.json"):
+    # Robust discovery: find all case.json files, then filter by case directory name.
+    # (Path.glob("**/{include}/case.json") can be fragile across platforms/shells.)
+    for case_file in bench_root.rglob("case.json"):
         case_dir = case_file.parent
-        res = run_benchmark(case_dir, verbose=args.verbose, skip_existing=args.skip_existing)
+        # Support both:
+        # - case-id style filters: "cache_optimization" or "*optimization*"
+        # - path style filters: "should_succeed/*" or "should_succeed/cache_optimization"
+        rel = None
+        try:
+            rel = case_dir.relative_to(bench_root).as_posix()
+        except Exception:
+            rel = str(case_dir)
+
+        if not (fnmatch.fnmatch(case_dir.name, args.include) or fnmatch.fnmatch(rel, args.include)):
+            continue
+        res = run_benchmark(case_dir, verbose=args.verbose, skip_existing=skip_existing)
         if res:
             all_results.append(res)
             print(f"✅ Result: {res['decision']} (Correct: {res['is_correct']})")
@@ -279,7 +318,7 @@ def main():
     
     # Update README.md with summary results
     try:
-        update_readme(report)
+        update_readme(report, bench_root=bench_root, readme_path=bench_root.parent / "README.md")
         print("📝 README.md updated with latest results")
     except Exception as e:
         print(f"⚠️ Failed to update README.md: {e}")

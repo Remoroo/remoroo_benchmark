@@ -1,0 +1,11 @@
+{
+  "case_id": "large_repo_generated_service_client",
+  "name": "Large Repo (generated ~1000 files): service+client bugfix + optimization + metrics",
+  "description": "Generates a realistic layered codebase (~1000 python files) with two entrypoints (server bootstrap + client workload). Requires fixing a correctness bug and an efficiency bug, then measuring multi-metric success via instrumentation. Also stresses system diagram generation.",
+  "repo_path": "repo",
+  "goal": "Run BOTH commands: `python run_server.py` and `python run_client.py`. Fix the correctness bug causing some responses to be wrong and fix the efficiency bug causing config parsing to happen once per request. Success requires emitting `artifacts/metrics.json` with: correct_responses == 50 and parse_calls == 1. IMPORTANT: do not hardcode constants to force the metrics; they must be computed from real program state. Also generate a coherent `system_diagram.md` showing the layered architecture (cli/services/domain/infra/adapters) and the critical request path.",
+  "metrics": "correct_responses == 50, parse_calls == 1",
+  "expected_outcome": "success",
+  "timeout_s": 900,
+  "max_turns": 10
+}
