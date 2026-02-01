@@ -1,0 +1,12 @@
+{
+  "case_id": "interactive_quiz_game",
+  "name": "Fix Interactive Quiz Game Bug",
+  "description": "Fix a bug in an interactive command-line quiz game that prevents correct score calculation",
+  "repo_path": "repo",
+  "goal": "Fix the quiz game in quiz.py so that it correctly calculates and displays the final score. The game should properly track correct answers and show the accurate percentage at the end.",
+  "metrics": "score_accuracy==1.0",
+  "expected_outcome": "success",
+  "timeout_s": 300,
+  "max_turns": 5
+}
+

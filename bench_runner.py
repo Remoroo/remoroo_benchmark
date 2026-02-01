@@ -73,6 +73,7 @@ def run_benchmark(case_path: Path, verbose: bool = False, skip_existing: bool = 
         "--repo", str(repo_path),
         "--goal", goal,
         "--metrics", metrics_req,
+        "--yes",
         "--no-patch"
     ]
     
