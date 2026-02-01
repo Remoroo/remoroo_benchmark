@@ -1,0 +1,11 @@
+{
+  "case_id": "multitest_multi_command_multi_metric",
+  "name": "MultiTest: Multi-command + Multi-metric + Multi-file (Deterministic)",
+  "description": "Forces the system to (1) select and run multiple commands, (2) instrument multiple entrypoints to emit multiple metrics, and (3) patch multiple library files to satisfy correctness metrics deterministically.",
+  "repo_path": "repo",
+  "goal":" fix bugs in alpha_sum calculation and beta_mean calculation",
+  "metrics": "alpha_sum == 10, beta_mean == 2.5",
+  "expected_outcome": "success",
+  "timeout_s": 600,
+  "max_turns": 6
+}
