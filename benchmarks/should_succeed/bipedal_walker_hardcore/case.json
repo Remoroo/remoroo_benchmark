@@ -1,0 +1,18 @@
+{
+    "case_id": "bipedal_walker_hardcore",
+    "name": "BipedalWalker Hardcore RL Training",
+    "description": "Train a reinforcement learning agent to walk a bipedal robot across randomly generated hardcore terrain using Box2D physics (compiled C - unhackable). The agent must learn to balance and traverse stumps, stairs, and pits.",
+    "repo_path": "repo",
+    "goal": "Train a PPO/DQN agent to achieve average reward >= 200 over 100 evaluation episodes on BipedalWalker-Hardcore-v3",
+    "metrics": "avg_reward >= 200",
+    "expected_outcome": "success",
+    "timeout_s": 20000,
+    "max_turns": 50,
+    "tags": [
+        "rl",
+        "control",
+        "box2d",
+        "visual",
+        "hard"
+    ]
+}
